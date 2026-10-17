@@ -107,7 +107,7 @@
 
     local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/sametexe001/sametlibs/refs/heads/main/secrethaxx/Library.lua"))()
     
-    local EspLib = loadstring(game:HttpGet('https://gist.githubusercontent.com/skekkstunsua-lgtm/970f0904ae3fab19847e088377f05505/raw/8b72eee001ac24b57ad7cc1a021283ff1ea3d6d7/gistfile1.txt'))()
+    local EspLib = loadstring(game:HttpGet('https://github.com/skekkstunsua-lgtm/von/raw/refs/heads/main/EspLib.lua'))()
 
     local Window = Library:Window({
         Name = 'von<font color="rgb(126, 192, 255)">.club</font> | developer  | lifetime',
