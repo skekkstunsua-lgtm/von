@@ -108,7 +108,7 @@
 
     local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/sametexe001/sametlibs/refs/heads/main/secrethaxx/Library.lua"))()
     
-    local EspLib = loadstring(game:HttpGet('https://gist.githubusercontent.com/skekkstunsua-lgtm/970f0904ae3fab19847e088377f05505/raw/8b72eee001ac24b57ad7cc1a021283ff1ea3d6d7/gistfile1.txt'))()
+    local EspLib = loadstring(game:HttpGet('https://github.com/skekkstunsua-lgtm/von/raw/refs/heads/main/EspLib.lua'))()
 
     local Window = Library:Window({
         Name = 'von<font color="rgb(126, 192, 255)">.club</font> | developer  | lifetime',
@@ -429,42 +429,42 @@ do -- combat
         visparams.FilterType = Enum.RaycastFilterType.Blacklist
 
         function GetVisibleTarget()
-        for _, plr in Players:GetPlayers() do
-                if plr == LocalPlayer or plr.Team == LocalPlayer.Team then 
-                continue 
-                end
-                
-                local data = plr.Character
-                
-                if not data then 
-                continue 
-                end
+            for _, plr in Players:GetPlayers() do
+                    if plr == LocalPlayer or plr.Team == LocalPlayer.Team then 
+                    continue 
+                    end
+                    
+                    local data = plr.Character
+                    
+                    if not data then 
+                    continue 
+                    end
 
-                local head = data:FindFirstChild("Head")
-                if not head or head.Position.Y < -250 then 
-                continue 
-                end
-                
-                local hum = data:FindFirstChild("Humanoid")
-                
-                if not hum or hum.Health <= 0 then 
-                continue 
-                end
+                    local head = data:FindFirstChild("Head")
+                    if not head or head.Position.Y < -250 then 
+                    continue 
+                    end
+                    
+                    local hum = data:FindFirstChild("Humanoid")
+                    
+                    if not hum or hum.Health <= 0 then 
+                    continue 
+                    end
 
-                visparams.FilterDescendantsInstances = {LocalPlayer.Character, data}
-                local origin = Camera.CFrame.Position
-                local visresult = workspace:Raycast(origin, head.Position - origin, visparams)
+                    visparams.FilterDescendantsInstances = {LocalPlayer.Character, data}
+                    local origin = Camera.CFrame.Position
+                    local visresult = workspace:Raycast(origin, head.Position - origin, visparams)
 
-                if not visresult then
-                local offset = ManipEnabled and findminoffset(head, origin) or nil
-                return { FinalPart = head, offset = offset }
-                elseif ManipEnabled then
-                local offset = findminoffset(head, origin)
-                if offset then
-                        return { FinalPart = head, offset = offset }
-                end
-                end
-        end
+                    if not visresult then
+                    local offset = ManipEnabled and findminoffset(head, origin) or nil
+                    return { FinalPart = head, offset = offset }
+                    elseif ManipEnabled then
+                    local offset = findminoffset(head, origin)
+                    if offset then
+                            return { FinalPart = head, offset = offset }
+                    end
+                    end
+            end
         end
 
         function GetKillAllTarget()
