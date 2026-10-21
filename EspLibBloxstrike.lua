@@ -1132,7 +1132,7 @@
         function EspLibrary:Update(Player, Data)
             local Objects = Data['Objects']
 
-            if not Data.RootPart or not Data.RootPart.Parent or (Table.TeamCheck and Player:GetAttribute("Team") == LocalPlayer:GetAttribute("Team")) then
+            if not Data.RootPart or not Data.RootPart.Parent or (Table.TeamCheck and Player:IsA("Player") and Player:GetAttribute("Team") == LocalPlayer:GetAttribute("Team")) then
             
                 if Objects['TargetHolder'].Visible then
                     Objects['TargetHolder'].Visible = false
@@ -1305,9 +1305,12 @@
                 if not Objects['TargetName'].Visible then
                     Objects['TargetName'].Visible = true
                 end
-
-                local DisplayName = Player.DisplayName
-
+                local DisplayName
+                if typeof(Player) == "Instance" and Player:IsA("Player") then
+                    DisplayName = Player.DisplayName
+                else
+                    DisplayName = Player.Name
+                end
                 if Data['LastDisplayName'] ~= DisplayName then
                     Objects['TargetName'].Text = DisplayName
                     Data['LastDisplayName'] = DisplayName
