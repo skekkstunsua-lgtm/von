@@ -1537,6 +1537,152 @@
         end
 
         do
+            local Characters = workspace:FindFirstChild("Characters")
+
+            local function addBotCharacter(character)
+                if not character:IsA("Model") then return end
+                if character:GetAttribute("Bot") ~= true then return end
+                if EspLibrary.Cache[character] then return end
+
+                local Data = {
+                    ['Player'] = character,
+                    ['Objects'] = {},
+                    ['Conns'] = {},
+                    ['Character'] = character,
+                    ['RootPart'] = nil,
+                    ['Humanoid'] = nil,
+                    ['Children'] = nil,
+                    ['Health'] = 0,
+                    ['MaxHealth'] = 100,
+                    ['Armor'] = 100,
+                    ['MaxArmor'] = 100,
+                    ['CurrentTool'] = nil,
+                    ['Alive'] = false,
+                    ['LastW'] = nil,
+                    ['LastH'] = nil,
+                    ['LastX'] = nil,
+                    ['LastY'] = nil,
+                    ['WalkActive'] = false,
+                    ['JumpActive'] = false,
+                    ['IncludeAccessories'] = Table['Boxes']['Bounding Box']['IncludeAcsessories'],
+                    ['LastGlowTop'] = nil,
+                    ['LastGlowBot'] = nil,
+                    ['LastGlowT1'] = nil,
+                    ['LastGlowT2'] = nil,
+                    ['LastGradTop'] = nil,
+                    ['LastGradBot'] = nil,
+                    ['LastFillTop'] = nil,
+                    ['LastFillBot'] = nil,
+                    ['LastFillT1'] = nil,
+                    ['LastFillT2'] = nil,
+                    ['LastDistColor'] = nil,
+                    ['LastDisplayName'] = nil,
+                    ['LastNameColor'] = nil,
+                    ['LastDist'] = nil,
+                    ['LastHealthTop'] = nil,
+                    ['LastHealthMid'] = nil,
+                    ['LastHealthBot'] = nil,
+                    ['LastHealthFloor'] = nil,
+                    ['LastRatio'] = nil,
+                    ['LastArmorTop'] = nil,
+                    ['LastArmorMid'] = nil,
+                    ['LastArmorBot'] = nil,
+                    ['LastArmorFloor'] = nil,
+                    ['LastArmorRatio'] = nil,
+                    ['LastWeapon'] = nil,
+                    ['LastWeaponColor'] = nil,
+                }
+
+                EspLibrary:InitEsp(Data)
+                EspLibrary.Cache[character] = Data
+
+                local RootPart = character:FindFirstChild("HumanoidRootPart")
+                if RootPart then
+                    Data.RootPart = RootPart
+                end
+
+                local function updateAlive()
+                    local h = character:GetAttribute("Health") or 0
+                    Data.Alive = character:GetAttribute("Dead") == false and h > 0
+                end
+
+                Data.Health = character:GetAttribute("Health") or 0
+                Data.MaxHealth = character:GetAttribute("MaxHealth") or 100
+                updateAlive()
+
+                Data.Conns.Health = character:GetAttributeChangedSignal("Health"):Connect(function()
+                    Data.Health = character:GetAttribute("Health") or 0
+                    updateAlive()
+                end)
+                Data.Conns.MaxHealth = character:GetAttributeChangedSignal("MaxHealth"):Connect(function()
+                    Data.MaxHealth = character:GetAttribute("MaxHealth") or 100
+                end)
+                Data.Conns.Dead = character:GetAttributeChangedSignal("Dead"):Connect(updateAlive)
+
+                local Children, Indices = {}, {}
+                Data.Children = Children
+                local function AddPart(child)
+                    if child:IsA("BasePart") and not Indices[child] then
+                        Children[#Children + 1] = child
+                        Indices[child] = #Children
+                    end
+                end
+                local function RemovePart(child)
+                    local index = Indices[child]
+                    if not index then return end
+                    local last = Children[#Children]
+                    Children[index] = last
+                    Indices[last] = index
+                    Children[#Children] = nil
+                    Indices[child] = nil
+                end
+                Data.Conns.ChildAdded = character.DescendantAdded:Connect(AddPart)
+                Data.Conns.ChildRemoved = character.DescendantRemoving:Connect(RemovePart)
+                for _, child in character:GetDescendants() do AddPart(child) end
+
+                local weaponFolder = character:FindFirstChild("WeaponModel")
+                if weaponFolder then
+                    local function getWeaponName()
+                        local equipped = weaponFolder:FindFirstChild("Equipped")
+                        return equipped and equipped:GetAttribute("WeaponName") or nil
+                    end
+
+                    Data.CurrentTool = getWeaponName()
+
+                    Data.Conns.ToolAdded = weaponFolder.ChildAdded:Connect(function(child)
+                        if child.Name == "Equipped" then
+                            Data.CurrentTool = child:GetAttribute("WeaponName")
+                        end
+                    end)
+                    Data.Conns.ToolRemoved = weaponFolder.ChildRemoved:Connect(function(child)
+                        if child.Name == "Equipped" then
+                            Data.CurrentTool = getWeaponName()
+                        end
+                    end)
+                end
+            end
+
+            local function removeBotCharacter(character)
+                if not EspLibrary.Cache[character] then return end
+                EspLibrary:RemoveTarget(character)
+            end
+
+            if Characters then
+                for _, character in Characters:GetChildren() do
+                    addBotCharacter(character)
+                end
+
+                EspLibrary:CreateThreads('BotCharAdded', Characters.ChildAdded, function(character)
+                    addBotCharacter(character)
+                end)
+
+                EspLibrary:CreateThreads('BotCharRemoved', Characters.ChildRemoved, function(character)
+                    removeBotCharacter(character)
+                end)
+            end
+        end
+
+        do
             function EspLibrary:Unload()
                 for _, connection in CameraConnections do connection:Disconnect() end
                 table.clear(CameraConnections)
