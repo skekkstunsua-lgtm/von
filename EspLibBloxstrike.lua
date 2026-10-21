@@ -846,7 +846,7 @@
 
                         local PartScreen, PartOnScreen = WorldToViewportPoint(Camera, Part.Position);
 
-                        if not PartOnScreen or PartScreen.Z <= 0 then
+                        if not PartOnScreen or PartScreen.Z < 1 then
                             continue;
                         end;
 
