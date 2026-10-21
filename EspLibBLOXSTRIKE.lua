@@ -1081,6 +1081,9 @@
                         or Character:WaitForChild("HumanoidRootPart", 10)
 
                     if not RootPart then return end
+
+                    task.wait()
+
                     if not Character.Parent or self.Cache[Player] ~= Data
                         or Player.Character ~= Character or Data.Character ~= Character then
                         return
@@ -1598,7 +1601,12 @@
 
                 local RootPart = character:FindFirstChild("HumanoidRootPart")
                 if RootPart then
-                    Data.RootPart = RootPart
+                    task.spawn(function()
+                        task.wait()
+                        if not EspLibrary.Cache[character] then return end
+                        if not character.Parent then return end
+                        Data.RootPart = RootPart
+                    end)
                 end
 
                 local function updateAlive()
