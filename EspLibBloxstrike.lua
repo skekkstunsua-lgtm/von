@@ -1,4 +1,4 @@
-    if getgenv().EspLibrary and getgenv().EspLibrary.Unload then
+if getgenv().EspLibrary and getgenv().EspLibrary.Unload then
         pcall(getgenv().EspLibrary.Unload, getgenv().EspLibrary)
     end
 
@@ -1122,7 +1122,9 @@
             Clear(Data['Conns']);
 
             if Data['Objects']['TargetHolder'] then
-                Data['Objects']['TargetHolder']:Destroy();
+                pcall(function()
+                    Data['Objects']['TargetHolder']:Destroy()
+                end)
             end;
 
             Clear(Data['Objects']);
