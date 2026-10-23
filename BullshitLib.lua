@@ -4667,7 +4667,6 @@ do --// UI Source
                         ScrollBarThickness = 3,
                         ScrollBarImageColor3 = Library.Theme["Accent"],
                         CanvasSize = UDim2.new(0, 0, 0, 0),
-                        AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y,
                         ScrollingDirection = Enum.ScrollingDirection.Y,
                         ClipsDescendants = true,
                     }):AddToTheme({ScrollBarImageColor3 = 'Accent'})
@@ -4698,12 +4697,16 @@ do --// UI Source
                         PaddingLeft = UDim.new(0, 6)
                     })
 
-                    Library:Create("UIListLayout", {
+                    local OptionListLayout = Library:Create("UIListLayout", {
                         Name = "\0",
                         Parent = Items["OptionScroll"].Instance,
                         Padding = UDim.new(0, 5),
                         SortOrder = Enum.SortOrder.LayoutOrder
                     })
+
+                    OptionListLayout.Instance:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                        Items["OptionScroll"].Instance.CanvasSize = UDim2.new(0, 0, 0, OptionListLayout.Instance.AbsoluteContentSize.Y + 12)
+                    end)
 
                     Items["RealDropdown"]:OnHover(function()
                         Items["RealDropdown"]:Tween({BackgroundColor3 = Library.Theme["Hovered Element"]})
@@ -5423,3 +5426,4 @@ end
 
 getgenv().Library = Library
 return Library
+-- 
