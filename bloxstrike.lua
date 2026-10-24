@@ -1,6 +1,7 @@
 --bloxstrike
 
 
+
 --#region checks
 
     if not game:IsLoaded() then 
@@ -192,6 +193,11 @@ do -- combat
     local AutoReloadEnabled = false;
     local FastReload = false;
     local ForceFullAuto = false;
+    local AntiAimEnabled = false;
+    local AntiAimMode = "Spin"
+    local SpinYaw = 0
+    local SpinSpeed = 0.1
+    local AntiAimPitch = "Up"
 
     --#region tracers
 
@@ -569,6 +575,48 @@ do -- combat
 
     --#endregion
 
+    
+    
+    --#region anti aim
+
+        for i, v in filtergc("function", {Name = "SampleInput"}, false) do 
+            local old; old = hookfunction(v, newcclosure(function(self, ctx)
+                local new = old(self, ctx)
+                
+                if AntiAimEnabled and new and new.LookYaw ~= nil then 
+                    local RealYaw = new.LookYaw
+
+                    if AntiAimMode == "Spin" then 
+                        SpinYaw = SpinYaw + SpinSpeed
+                        new.LookYaw = SpinYaw
+                    elseif AntiAimMode == "Backwards" then 
+                        new.LookYaw = new.LookYaw + math.pi 
+                    end 
+
+                    local delta = new.LookYaw - RealYaw
+                    local cos = math.cos(delta)
+                    local sin = math.sin(delta)
+                    local mx = new.Move.X 
+                    local my = new.Move.Y 
+
+                    new.Move = Vector2.new(mx * cos - my * sin, mx * sin + my * cos)
+
+                    if AntiAimPitch == "Up" then
+                        new.VerticalLook = 1
+                    elseif AntiAimPitch == "Down" then
+                        new.VerticalLook = -1
+                    elseif AntiAimPitch == "Jitter" then
+                        new.VerticalLook = math.floor(tick() * 20) % 2 == 0 and 1 or -1
+                    end
+                        
+                end 
+                return new 
+            end))
+            break 
+        end 
+
+    --#endregion
+
 
 
     --#region gun mods
@@ -781,6 +829,48 @@ do -- combat
                 FastReload = v
             end
         })
+
+        Sections.exploits:Toggle({
+            Name = 'anti-aim';
+            Flag = 'antiaim';
+            Default = false;
+            Callback = function(v)
+                AntiAimEnabled = v
+            end
+        })
+
+        Sections.exploits:Dropdown({
+            Name = 'yaw';
+            Items = {"Spin", "Back to target", "Backwards"};
+            Default = "Spin";
+            Callback = function(v)
+                AntiAimMode = v
+            end
+        })
+
+        Sections.exploits:Slider({
+            Name = 'spin speed';
+            Flag = 'spinspeed';
+            Default = 0.1;
+            Min = 0.01;
+            Max = 0.5;
+            Decimals = 0.01;
+            Callback = function(v)
+                SpinSpeed = v
+            end
+        })
+
+        Sections.exploits:Dropdown({
+            Name = 'pitch';
+            Items = {"Off", "Up", "Down", "Jitter"};
+            Default = "Off";
+            Callback = function(v)
+                AntiAimPitch = v
+            end
+        })
+        Sections.exploits:Label({Name = 'pitch wont be shown on the client'})
+        Sections.exploits:Label({Name = 'other people will be able to see it.'})
+    
     --#endregion
 end 
 
