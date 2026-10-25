@@ -11,7 +11,6 @@
 
         local Workspace, Players, RunService, HttpService, CollectionService = GetService["Workspace"], GetService["Players"], GetService["RunService"], GetService["HttpService"], GetService["CollectionService"];
         local LocalPlayer, Camera = Players.LocalPlayer, Workspace.CurrentCamera;
-        local WorldToViewportPoint, FindFirstChildOfClass, FindFirstChild = (Camera and Camera.WorldToViewportPoint), game.FindFirstChildOfClass, game.FindFirstChild;
 
         local NewVector3, NewVector2, Dim, Dim2, DimOffset = Vector3.new, Vector2.new, UDim.new, UDim2.new, UDim2.fromOffset;
         local NumSeq = NumberSequence.new;
@@ -34,7 +33,6 @@
             table.clear(CameraConnections)
             Camera = Workspace.CurrentCamera
             if not Camera then return end
-            WorldToViewportPoint = Camera.WorldToViewportPoint
             CameraCache()
             CameraConnections[1] = Camera:GetPropertyChangedSignal("FieldOfView"):Connect(CameraCache)
             CameraConnections[2] = Camera:GetPropertyChangedSignal("ViewportSize"):Connect(CameraCache)
@@ -815,7 +813,7 @@
                 return nil, nil, nil, nil, false;
             end;
 
-            local RootScreen, OnScreen = WorldToViewportPoint(Camera, RootPart.Position)
+            local RootScreen, OnScreen = Camera:WorldToViewportPoint(RootPart.Position)
 
             if not OnScreen then
                 return nil, nil, nil, nil, false;
@@ -847,7 +845,7 @@
                             continue;
                         end;
 
-                        local PartScreen, PartOnScreen = WorldToViewportPoint(Camera, Part.Position);
+                        local PartScreen, PartOnScreen = Camera:WorldToViewportPoint(Part.Position);
 
                         if not PartOnScreen or PartScreen.Z <= 0 then
                             continue;
@@ -1182,8 +1180,10 @@
 
                     Data.Binding = true
 
-                    local RootPart = FindFirstChild(Character, "HumanoidRootPart") or Character:WaitForChild('HumanoidRootPart', 10);
-                    local Humanoid = FindFirstChildOfClass(Character, 'Humanoid') or Character:WaitForChild('Humanoid', 10);
+                    -- method calls on purpose: cached game.FindFirstChild gets bound to `game` by some
+                    -- executors, turning this into a recursive game-wide search that returns the character
+                    local RootPart = Character:FindFirstChild("HumanoidRootPart") or Character:WaitForChild('HumanoidRootPart', 10);
+                    local Humanoid = Character:FindFirstChildOfClass('Humanoid') or Character:WaitForChild('Humanoid', 10);
 
                     
                     if self.Cache[Target] ~= Data or Data.Character ~= Character then
