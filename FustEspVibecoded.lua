@@ -906,7 +906,6 @@
                 ['Player'] = Player,
                 ['IsNpc'] = IsNpc,
                 ['Name'] = IsNpc and Target.Name or nil,
-                ['Binding'] = false,
                 ['Objects'] = {},
                 ['Conns'] = {},
                 ['Character'] = nil,
@@ -964,6 +963,15 @@
 
                     if Data['Conns']['Died'] then
                         Data['Conns']['Died']:Disconnect()
+                    end
+
+                    -- can rebind mid-life now (humanoid streamed back in), don't leak these
+                    if Data.Conns.MaxHealth then
+                        Data.Conns.MaxHealth:Disconnect()
+                    end
+
+                    if Data.Conns.NpcDead then
+                        Data.Conns.NpcDead:Disconnect()
                     end
 
                     Data['Humanoid'] = Humanoid
@@ -1152,9 +1160,43 @@
             local KeepConns = { CharAdded = true, CharRemoving = true, CharChanged = true }
 
             local CharacterHandler = {}; do
+                -- Fust streams character *parts*: the Model sits in workspace permanently while
+                -- HumanoidRootPart/limbs stream in and out (often as new instances). So we never wait
+                -- for parts; we watch the model and (re)bind whenever the root or humanoid shows up.
+                -- method calls on purpose: cached game.FindFirstChild gets bound to `game` by some
+                -- executors, turning lookups into a recursive game-wide search.
+                local function TryBind()
+                    local Character = Data.Character
+                    if not Character then return end
+
+                    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+                    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
+                    if not (RootPart and RootPart:IsA("BasePart")) or not Humanoid then
+                        return
+                    end
+
+                    Data['RootPart'] = RootPart
+
+                    if Data.Humanoid ~= Humanoid then
+                        Data['Humanoid'] = Humanoid
+
+                        if Data.IsNpc then
+                            Data.Name = Humanoid.DisplayName ~= "" and Humanoid.DisplayName or Character.Name
+                        end
+
+                        Data['BindHealth'](Humanoid);
+                        Data['BindFlags'](Humanoid);
+                    end
+                end
+
                 function CharacterHandler.OnCharacter(Character)
                     if self.Cache[Target] ~= Data or not Character then return end
-                    if Data.Character == Character and (Data.Binding or (Data.RootPart and Data.RootPart.Parent and Character.Parent)) then return end
+
+                    if Data.Character == Character then
+                        TryBind()
+                        return
+                    end
 
                     for name, connection in Data.Conns do
                         if not KeepConns[name] then
@@ -1172,40 +1214,23 @@
                     Data['Alive'] = false;
                     Data['WalkActive'] = false;
                     Data['JumpActive'] = false;
-                    Data.Binding = false
 
-                    if not Character.Parent then
-                        return;
-                    end;
-
-                    Data.Binding = true
-
-                    -- method calls on purpose: cached game.FindFirstChild gets bound to `game` by some
-                    -- executors, turning this into a recursive game-wide search that returns the character
-                    local RootPart = Character:FindFirstChild("HumanoidRootPart") or Character:WaitForChild('HumanoidRootPart', 10);
-                    local Humanoid = Character:FindFirstChildOfClass('Humanoid') or Character:WaitForChild('Humanoid', 10);
-
-                    
-                    if self.Cache[Target] ~= Data or Data.Character ~= Character then
-                        return;
-                    end;
-
-                    Data.Binding = false
-
-                    if not RootPart or not Humanoid or not Character.Parent then
-                        return;
-                    end;
-
-                    Data['RootPart'] = RootPart;
-                    Data['Humanoid'] = Humanoid;
-
-                    if Data.IsNpc then
-                        Data.Name = Humanoid.DisplayName ~= "" and Humanoid.DisplayName or Character.Name
-                    end
-
+                    -- part list is maintained via DescendantAdded/Removing, so it follows streaming too
                     Data['BindChildren'](Character);
-                    Data['BindHealth'](Humanoid);
-                    Data['BindFlags'](Humanoid);
+
+                    Data.Conns.StreamIn = Character.ChildAdded:Connect(function(Child)
+                        if Child.Name == "HumanoidRootPart" or Child:IsA("Humanoid") then
+                            TryBind()
+                        end
+                    end)
+
+                    Data.Conns.StreamOut = Character.ChildRemoved:Connect(function(Child)
+                        if Child == Data.RootPart then
+                            Data['RootPart'] = nil
+                        end
+                    end)
+
+                    TryBind()
                 end
 
                 Data['Rebind'] = CharacterHandler.OnCharacter
@@ -1221,7 +1246,6 @@
                         if Data.Character ~= character then return end
                         Data.Character, Data.RootPart, Data.Humanoid = nil, nil, nil
                         Data.Alive = false
-                        Data.Binding = false
                         Data.Objects.TargetHolder.Visible = false
                         for name, connection in Data.Conns do
                             if not KeepConns[name] then
