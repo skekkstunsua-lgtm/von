@@ -14,7 +14,9 @@ elseif game.GameId == 4750561026 then  -- cold war
     loadstring(game:HttpGet('https://raw.githubusercontent.com/skekkstunsua-lgtm/von/refs/heads/main/coldwar.lua'))()
 elseif game.GameId == 7633926880 then -- bloxstrike
     loadstring(game:HttpGet('https://raw.githubusercontent.com/skekkstunsua-lgtm/von/refs/heads/main/bloxstrike.lua'))()
-else 
+elseif game.GameId == 73885730 then -- prison life
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/skekkstunsua-lgtm/von/refs/heads/main/prison%20life'))()
+else
 
     game.Players.LocalPlayer:Kick("game is unsupported. "..game.GameId)
     return
