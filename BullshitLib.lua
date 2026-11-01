@@ -38,12 +38,10 @@ Library = {
         Style = "Quart",
         Direction = "Out",
 
-        -- menu open/close fade
         FadeTime = 0.4,
         FadeStyle = "Sine",
     },
 
-    -- menu effects (shown while the menu is open)
     BlurEnabled = true,
     BlurSize = 12,
     SnowEnabled = true,
@@ -64,12 +62,12 @@ Library = {
         ["Element Accent"] = Color3.fromRGB(113, 119, 138),
     },
 
-    -- internal
     Connections = { },
     Threads = { },
     Themed = { },
     OpenFrames = { },
     Floating = { },
+    Landing = { },
     ShadowWanted = { },
     KeyList = nil,
     MenuOpen = true,
@@ -77,6 +75,7 @@ Library = {
     Font = nil,
     Holder = nil,
     PopupHolder = nil,
+    DragHolder = nil,
 }
 Library.__index = Library
 
@@ -160,13 +159,33 @@ local function Tween(Object, Properties, Time)
     return NewTween
 end
 
+local function Glide(Item, Key, Properties, Instant)
+    local Running = Item.Tweens[Key]
+
+    if Running then
+        Running:Cancel()
+        Item.Tweens[Key] = nil
+    end
+
+    if Instant then
+        for Property, Value in Properties do
+            Item.Frame[Property] = Value
+        end
+
+        return nil
+    end
+
+    local NewTween = Tween(Item.Frame, Properties)
+    Item.Tweens[Key] = NewTween
+    return NewTween
+end
+
 local function Themed(Function)
     table.insert(Library.Themed, Function)
     Function()
     return Function
 end
 
--- transparency properties that get faded for open/close + page switching
 local function FadeProperties(Object)
     if Object:IsA("UIStroke") then
         return { "Transparency" }
@@ -192,8 +211,6 @@ local function FadeProperties(Object)
     return Properties
 end
 
--- "Window" fades (menu open/close, floating windows) use the slower FadeTime/FadeStyle,
--- everything else (page switching) uses the normal animation settings.
 local function FadeInfo(Kind)
     local Animation = Library.Animation
 
@@ -212,8 +229,6 @@ local function FadeInfo(Kind)
     )
 end
 
--- Fades a frame and all its descendants in/out.
--- One NumberValue drives every property, so it stays cheap on big menus.
 local function Fader(Root, UseScale, Kind)
     local Fade = {
         Open = Root.Visible,
@@ -227,7 +242,6 @@ local function Fader(Root, UseScale, Kind)
 
     local Scale = UseScale and New("UIScale", { Parent = Root }) or nil
 
-    -- UIShadows can't be faded, so they're pulled off while fading and put back once fully open
     local function DetachShadows()
         for _, Object in Root:GetDescendants() do
             if Object:IsA("UIShadow") then
@@ -333,7 +347,6 @@ local function Fader(Root, UseScale, Kind)
         end)
     end
 
-    -- jump straight to the end of a running fade
     function Fade:Finish()
         if not Fade.Tween then
             return
@@ -360,7 +373,6 @@ local function IsMove(Input)
     return Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch
 end
 
--- mouse position in the same space as GuiObject.AbsolutePosition
 local function MouseAbs()
     return UserInputService:GetMouseLocation() + Library.Holder.AbsolutePosition
 end
@@ -377,7 +389,6 @@ local function IsMouseOver(Object)
         and Mouse.Y >= Position.Y and Mouse.Y <= Position.Y + Size.Y
 end
 
--- position a popup (in PopupHolder) relative to an anchor object
 local function PlaceBelow(Popup, Anchor, OffsetY, AlignRight)
     local Position = Anchor.AbsolutePosition - Library.PopupHolder.AbsolutePosition
     local X = Position.X
@@ -418,7 +429,6 @@ local function AccentSequence(Base)
     }
 end
 
--- the double stroke used everywhere in the design (coloured inner + black outer)
 local function Outline(Parent, ColorKey, Thick)
     local Inner = New("UIStroke", {
         Parent = Parent,
@@ -450,7 +460,6 @@ local function Shade(Parent, Rotation, From, To)
     })
 end
 
--- 1px accent line across the top of windows
 local function Highlight(Parent, BaseKey, Position, Size)
     local Line = New("Frame", {
         Parent = Parent,
@@ -468,14 +477,12 @@ local function Highlight(Parent, BaseKey, Position, Size)
     return Line
 end
 
--- white/accent alternating text gradient (window titles)
 local function TitleGradient(Label, Rotation)
     local Gradient = New("UIGradient", { Parent = Label, Rotation = Rotation or 0 })
     Themed(function() Gradient.Color = AccentSequence(Color3.new(1, 1, 1)) end)
     return Gradient
 end
 
--- main "Vergil.lol" title gradient
 local function MainGradient(Label)
     local Gradient = New("UIGradient", { Parent = Label })
     Themed(function()
@@ -533,7 +540,7 @@ local function KeyName(Key)
 end
 --#endregion
 
---#region Library methods (same names as BullshitLib)
+--#region Library methods
 Library.SafeCall = function(Self, Function, ...)
     return SafeCall(Function, ...)
 end
@@ -581,6 +588,7 @@ Library.Exit = function(Self)
 
     Library.Holder:Destroy()
     Library.PopupHolder:Destroy()
+    Library.DragHolder:Destroy()
     Library.SnowHolder:Destroy()
     Library.Blur:Destroy()
 
@@ -703,6 +711,14 @@ Library.PopupHolder = New("ScreenGui", {
     DisplayOrder = 101,
 })
 
+Library.DragHolder = New("ScreenGui", {
+    Parent = GetHui(),
+    IgnoreGuiInset = true,
+    ResetOnSpawn = false,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    DisplayOrder = 102,
+})
+
 Library.NotifHolder = New("Frame", {
     Parent = Library.Holder,
     BackgroundTransparency = 1,
@@ -719,7 +735,6 @@ New("UIListLayout", {
     Padding = UDim.new(0, 4),
 })
 
--- keep open popups glued to their anchors (window drag / scrolling)
 Connect(RunService.RenderStepped, function()
     for _, Frame in Library.OpenFrames do
         if Frame.Reposition then
@@ -729,10 +744,9 @@ Connect(RunService.RenderStepped, function()
 end)
 --#endregion
 
---#region Effects (background blur + snow while the menu is open)
+--#region Effects
 Library.Blur = New("BlurEffect", { Parent = Lighting, Size = 0 })
 
--- behind the menu (DisplayOrder 100) but above the game
 Library.SnowHolder = New("ScreenGui", {
     Parent = GetHui(),
     IgnoreGuiInset = true,
@@ -862,6 +876,229 @@ Library.Notification = function(Self, Params)
         Label:Destroy()
     end)
 end
+--#endregion
+
+--#region Docking
+local Drag = nil
+
+local function CanDrag()
+    local Window = Library.WindowObject
+
+    if Drag or not Window or not Window.IsOpen or Window.Fader.Tween then
+        return false
+    end
+
+    local Page = Window.Current
+    return not (Page and Page.Fader.Tween)
+end
+
+local function SettleLanding()
+    for Section in Library.Landing do
+        Section:Settle()
+    end
+end
+
+local function NewPlaceholder(Column, Height, Instant)
+    local Frame = New("Frame", {
+        Parent = Column.Scroll,
+        BackgroundColor3 = Theme.Accent,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, -4, 0, Instant and Height or 0),
+    })
+
+    local Stroke = New("UIStroke", {
+        Parent = Frame,
+        Color = Theme.Accent,
+        Transparency = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        LineJoinMode = Enum.LineJoinMode.Miter,
+        BorderStrokePosition = StrokeInner,
+    })
+
+    Tween(Frame, { BackgroundTransparency = 0.86, Size = UDim2.new(1, -4, 0, Height) })
+    Tween(Stroke, { Transparency = 0 })
+
+    return {
+        Frame = Frame,
+        Stroke = Stroke,
+        Height = Height,
+        Placeholder = true,
+        Tweens = { },
+    }
+end
+
+local function DropPlaceholder(Placeholder, Shrink)
+    local Goal = { BackgroundTransparency = 1 }
+
+    if Shrink then
+        Goal.Size = UDim2.new(1, -4, 0, 0)
+    end
+
+    Tween(Placeholder.Stroke, { Transparency = 1 })
+    Tween(Placeholder.Frame, Goal).Completed:Connect(function()
+        Placeholder.Frame:Destroy()
+    end)
+end
+
+local function SlotAt(Mouse)
+    local Window = Library.WindowObject
+    local Page = Window and Window.Current
+
+    if not Page or not Window.IsOpen then
+        return nil
+    end
+
+    local Area = Window.Items.Content.Instance
+
+    if not IsMouseOver(Area) then
+        return nil
+    end
+
+    local Middle = Area.AbsolutePosition.X + Area.AbsoluteSize.X / 2
+    local Column = Page.Columns[Mouse.X < Middle and 1 or 2]
+    local Y = Mouse.Y - Column.Scroll.AbsolutePosition.Y + Column.Scroll.CanvasPosition.Y
+    local Index = 1
+
+    for _, Item in Column.Items do
+        if not Item.Placeholder and Y > Item.Y + (Item.Hidden and 0 or Item.Height / 2) then
+            Index += 1
+        end
+    end
+
+    return Column, Index
+end
+
+local function Reshape()
+    local Section = Drag.Section
+    local Size = Drag.Size
+
+    if Drag.Column then
+        Size = Vector2.new(Drag.Column.Scroll.AbsoluteSize.X - 4, Section.Height)
+    end
+
+    Drag.Offset = Vector2.new(math.min(Drag.Offset.X, Size.X - 16), Drag.Offset.Y)
+    Glide(Section, "Size", { Size = UDim2.fromOffset(Size.X, Size.Y) })
+end
+
+local function SetSlot(Column, Index)
+    if Column == Drag.Column and Index == Drag.Index then
+        return
+    end
+
+    local Old = Drag.Column
+    local Placeholder = Drag.Placeholder
+
+    if Old then
+        table.remove(Old.Items, table.find(Old.Items, Placeholder))
+
+        if Old ~= Column then
+            DropPlaceholder(Placeholder, true)
+            Placeholder = nil
+            Old:Layout()
+        end
+    end
+
+    if Column then
+        local Snap = nil
+
+        if not Placeholder then
+            Placeholder = NewPlaceholder(Column, Drag.Section.Height)
+            Snap = Placeholder
+        end
+
+        table.insert(Column.Items, Index, Placeholder)
+        Column:Layout(false, Snap)
+    end
+
+    Drag.Column, Drag.Index, Drag.Placeholder = Column, Index, Placeholder
+
+    if Column ~= Old then
+        Reshape()
+    end
+end
+
+local function BeginDrag(Section)
+    local Frame = Section.Frame
+    local Column = Section.Column
+    local Position = Frame.AbsolutePosition
+
+    Library:CloseAll()
+
+    Drag = {
+        Section = Section,
+        Position = Position,
+        Offset = MouseAbs() - Position,
+        Size = Section.FloatSize or Frame.AbsoluteSize,
+    }
+
+    if Column then
+        local Index = table.find(Column.Items, Section)
+        local Placeholder = NewPlaceholder(Column, Section.Height, true)
+
+        Column.Items[Index] = Placeholder
+        Drag.Column, Drag.Index, Drag.Placeholder = Column, Index, Placeholder
+        Column:Layout(false, Placeholder)
+    end
+
+    Section:Lift()
+end
+
+local function EndDrag()
+    local Current = Drag
+    local Column, Placeholder = Current.Column, Current.Placeholder
+
+    Drag = nil
+
+    if Column then
+        local Index = table.find(Column.Items, Placeholder)
+
+        table.remove(Column.Items, Index)
+        DropPlaceholder(Placeholder)
+        Current.Section:Dock(Column, Index)
+    else
+        Current.Section:Float()
+    end
+end
+
+Connect(RunService.RenderStepped, function(Delta)
+    if not Drag then
+        return
+    end
+
+    local Mouse = MouseAbs()
+    local Origin = Library.DragHolder.AbsolutePosition
+
+    Drag.Position = Drag.Position:Lerp(Mouse - Drag.Offset, math.min(Delta * 24, 1))
+    Drag.Section.Frame.Position = UDim2.fromOffset(Drag.Position.X - Origin.X, Drag.Position.Y - Origin.Y)
+
+    local Column, Index = SlotAt(Mouse)
+
+    if Column then
+        local Scroll = Column.Scroll
+        local Top = Scroll.AbsolutePosition.Y
+        local Bottom = Top + Scroll.AbsoluteSize.Y
+        local Direction = 0
+
+        if Mouse.Y < Top + 24 then
+            Direction = -1
+        elseif Mouse.Y > Bottom - 24 then
+            Direction = 1
+        end
+
+        if Direction ~= 0 then
+            local Limit = math.max(Scroll.AbsoluteCanvasSize.Y - Scroll.AbsoluteWindowSize.Y, 0)
+            Scroll.CanvasPosition = Vector2.new(0, math.clamp(Scroll.CanvasPosition.Y + Direction * 320 * Delta, 0, Limit))
+        end
+    end
+
+    SetSlot(Column, Index)
+end)
+
+Connect(UserInputService.InputEnded, function(Input)
+    if Drag and IsClick(Input) then
+        EndDrag()
+    end
+end)
 --#endregion
 
 --#region Colorpicker
@@ -1162,7 +1399,6 @@ Library.CreateKeybind = function(Self, Data)
     end
     Themed(Paint)
 
-    -- mode picker (right click)
     local ModePopup = New("Frame", {
         Parent = Library.PopupHolder,
         Visible = false,
@@ -1348,7 +1584,6 @@ Library.CreateKeybind = function(Self, Data)
             SafeCall(Data.Callback, Keybind.Toggled)
             Update()
 
-            -- stay in picking state for this input so it doesn't instantly trigger the bind
             task.defer(function()
                 Keybind.Picking = false
                 Paint()
@@ -1799,7 +2034,6 @@ Library.TargetHUD = function(Self, Params)
 
         local Player, Model = HUD.Player, HUD.Model
 
-        -- preview with yourself while the menu is open so it can be positioned
         if (not Model or not Model.Parent) and Library.MenuOpen then
             Player, Model = LocalPlayer, LocalPlayer.Character
         end
@@ -1845,7 +2079,7 @@ Library.TargetHUD = function(Self, Params)
 end
 --#endregion
 
---#region EspPreview (floating window next to the menu)
+--#region EspPreview
 Library.EspPreview = function(Self, Params)
     Params = Params or { }
 
@@ -1932,7 +2166,6 @@ Library.Window = function(Self, Params)
     local Plain = (Window.Name:gsub("<[^>]->", ""))
     Library.Name = Plain:match("^%s*(.-)%s*|") or Plain
 
-    -- Window_Frame
     local Main = New("Frame", {
         Parent = Library.Holder,
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1952,7 +2185,6 @@ Library.Window = function(Self, Params)
     Shade(Main, -90, Color3.fromRGB(144, 145, 145), Color3.fromRGB(201, 201, 201))
     Highlight(Main, "Background", UDim2.new(0, -10, 0, 0), UDim2.new(1, 20, 0, 1))
 
-    -- Title_Frame
     local Title = New("TextLabel", {
         Parent = Main,
         Size = UDim2.new(1, 0, 0, 30),
@@ -1963,7 +2195,6 @@ Library.Window = function(Self, Params)
     MainGradient(Title)
     Draggable(Title, Main)
 
-    -- FullTabWindo_Frame
     local Content = New("Frame", {
         Parent = Main,
         Position = UDim2.fromOffset(0, 30),
@@ -1982,7 +2213,6 @@ Library.Window = function(Self, Params)
         }
     })
 
-    -- tab_buttons
     local TabBar = New("Frame", {
         Parent = Content,
         Position = UDim2.fromOffset(1, 1),
@@ -2008,7 +2238,6 @@ Library.Window = function(Self, Params)
     Themed(function() TabStroke.Color = Theme.Outline end)
     Shade(TabBar, 90)
 
-    -- TabWindow_Frame (pages live here)
     local PagesHolder = New("Frame", {
         Parent = Content,
         BackgroundTransparency = 1,
@@ -2016,7 +2245,6 @@ Library.Window = function(Self, Params)
         Size = UDim2.new(1, -20, 1, -77),
     })
 
-    -- BottomBar_Frame
     local Bottom = New("Frame", {
         Parent = Content,
         AnchorPoint = Vector2.new(0, 1),
@@ -2067,11 +2295,16 @@ Library.Window = function(Self, Params)
             return
         end
 
+        if Drag then
+            EndDrag()
+        end
+
+        SettleLanding()
+
         Window.IsOpen = Bool
         Library.MenuOpen = Bool
         Library:CloseAll()
 
-        -- settle any page transition so the window snapshot has final values
         for _, Page in Window.Pages do
             Page.Fader:Finish()
         end
@@ -2120,6 +2353,7 @@ Library.Page = function(Self, Params)
     local Page = {
         Name = Params.Name or Params.name or "Page",
         Window = Window,
+        Columns = { },
         ColumnsData = { },
         Items = { },
     }
@@ -2154,38 +2388,56 @@ Library.Page = function(Self, Params)
             Position = Index == 1 and UDim2.new(0, 0, 0, 0) or UDim2.new(0.5, 5, 0, 0),
             Size = UDim2.new(0.5, -5, 1, 0),
             CanvasSize = UDim2.new(0, 0, 0, 0),
-            AutomaticCanvasSize = Enum.AutomaticSize.Y,
             ScrollingDirection = Enum.ScrollingDirection.Y,
             ScrollBarThickness = 0,
             Active = true,
-        })
-        New("UIListLayout", { Parent = Scroll, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
-        New("UIPadding", {
-            Parent = Scroll,
-            PaddingTop = UDim.new(0, 2),
-            PaddingBottom = UDim.new(0, 2),
-            PaddingLeft = UDim.new(0, 2),
-            PaddingRight = UDim.new(0, 2),
         })
 
         Connect(Scroll:GetPropertyChangedSignal("CanvasPosition"), function()
             Library:CloseAll()
         end)
 
-        return Scroll
+        local Data = {
+            Scroll = Scroll,
+            Holder = Holder,
+            Page = Page,
+            Items = { },
+        }
+
+        function Data:Layout(Instant, Snap)
+            local Y = 2
+
+            for _, Item in Data.Items do
+                Item.Y = Y
+
+                if not Item.Hidden then
+                    if Item.State ~= "Landing" then
+                        Glide(Item, "Position", { Position = UDim2.fromOffset(2, Y) }, Instant or Item == Snap)
+                    end
+
+                    Y += Item.Height + 8
+                end
+            end
+
+            Scroll.CanvasSize = UDim2.fromOffset(0, math.max(Y - 6, 0))
+        end
+
+        return Data
     end
 
     local Left, Right = Column(1), Column(2)
-    Page.ColumnsData[1] = Left
-    Page.ColumnsData[2] = Right
+    Page.Columns[1] = Left
+    Page.Columns[2] = Right
+    Page.ColumnsData[1] = Left.Scroll
+    Page.ColumnsData[2] = Right.Scroll
     Page.Fader = Fader(Holder)
 
     Page.Items = {
         Inactive = Wrap(Tab),
         Text = Wrap(Tab),
         Page = Wrap(Holder),
-        LeftColumn = Wrap(Left),
-        RightColumn = Wrap(Right),
+        LeftColumn = Wrap(Left.Scroll),
+        RightColumn = Wrap(Right.Scroll),
     }
 
     local function Paint()
@@ -2208,11 +2460,11 @@ Library.Page = function(Self, Params)
     function Page:Turn()
         local Old = Window.Current
 
-        -- don't switch while the whole window is fading
-        if Old == Page or Window.Fader.Tween then
+        if Old == Page or Window.Fader.Tween or Drag then
             return
         end
 
+        SettleLanding()
         Library:CloseAll()
         Window.Current = Page
 
@@ -2253,54 +2505,301 @@ Library.Section = function(Self, Params)
     end
     Side = math.clamp(Side, 1, 2)
 
+    local Home = Self.Columns[Side]
+
     local Section = {
         Name = Params.Name or Params.name or "Section",
         Side = Side,
 
         Window = Self.Window,
         Page = Self,
+        Column = Home,
+
+        State = "Docked",
+        Height = 42,
+        Y = 0,
+        Hidden = false,
+        FloatSize = nil,
+        Born = os.clock(),
+        Tweens = { },
         Items = { },
     }
     Section.Section = Section
 
     local Frame = New("Frame", {
-        Parent = Self.ColumnsData[Side],
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
+        Parent = Home.Scroll,
+        Size = UDim2.new(1, -4, 0, Section.Height),
         BackgroundTransparency = 0,
-        LayoutOrder = NextOrder(),
     })
     Themed(function() Frame.BackgroundColor3 = Theme.Background end)
     Outline(Frame, "Outline", true)
     Shade(Frame, 90)
-    New("UIPadding", {
+
+    local Accent = Highlight(Frame, "Background")
+    Accent.Visible = false
+
+    local Shadow = New("UIShadow", { })
+
+    local Handle = New("Frame", {
         Parent = Frame,
-        PaddingTop = UDim.new(0, 10),
-        PaddingBottom = UDim.new(0, 12),
-        PaddingLeft = UDim.new(0, 12),
-        PaddingRight = UDim.new(0, 12),
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 28),
     })
-    New("UIListLayout", { Parent = Frame, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
 
     local Title = New("TextLabel", {
-        Parent = Frame,
-        Size = UDim2.new(1, 0, 0, 12),
+        Parent = Handle,
+        Position = UDim2.fromOffset(12, 10),
+        Size = UDim2.new(1, -24, 0, 12),
         TextXAlignment = Enum.TextXAlignment.Left,
         Text = Section.Name,
-        LayoutOrder = 0,
     })
     TitleGradient(Title)
 
-    Section.Container = Frame
-    Section.Items = { Section = Wrap(Frame), Content = Wrap(Frame), Text = Wrap(Title) }
+    local Body = New("ScrollingFrame", {
+        Parent = Frame,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 28),
+        Size = UDim2.new(1, -20, 1, -38),
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollingEnabled = false,
+        ScrollBarThickness = 2,
+    })
+    Themed(function() Body.ScrollBarImageColor3 = Theme["Element Accent"] end)
+    New("UIPadding", {
+        Parent = Body,
+        PaddingTop = UDim.new(0, 2),
+        PaddingBottom = UDim.new(0, 2),
+        PaddingLeft = UDim.new(0, 2),
+        PaddingRight = UDim.new(0, 2),
+    })
+    local List = New("UIListLayout", { Parent = Body, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+
+    local Grip = New("TextButton", {
+        Parent = Frame,
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.new(1, -3, 1, -3),
+        Size = UDim2.fromOffset(8, 8),
+        BackgroundTransparency = 0,
+        ZIndex = 5,
+        Visible = false,
+    })
+    Themed(function() Grip.BackgroundColor3 = Theme["Element Accent"] end)
+    New("UIGradient", {
+        Parent = Grip,
+        Rotation = 45,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.5, 1),
+            NumberSequenceKeypoint.new(0.51, 0),
+            NumberSequenceKeypoint.new(1, 0),
+        }
+    })
+
+    Section.Frame = Frame
+    Section.Container = Body
+    Section.Fader = Fader(Frame, true, "Window")
+    Section.Items = {
+        Section = Wrap(Frame),
+        Content = Wrap(Body),
+        Text = Wrap(Title),
+        Handle = Wrap(Handle),
+        Grip = Wrap(Grip),
+    }
+
+    local Entry = { Frame = Frame, Enabled = true, Fader = Section.Fader }
+
+    local function SetState(State)
+        local Loose = State ~= "Docked"
+        local Floating = State == "Floating"
+        local Index = table.find(Library.Floating, Entry)
+
+        Section.State = State
+        Accent.Visible = Loose
+        Grip.Visible = Floating
+        Body.ScrollingEnabled = Floating
+        Library.ShadowWanted[Shadow] = Loose
+        Shadow.Parent = Loose and Frame or nil
+
+        if Floating and not Index then
+            table.insert(Library.Floating, Entry)
+        elseif Index and not Floating then
+            table.remove(Library.Floating, Index)
+        end
+    end
+
+    local function Measure()
+        local Content = List.AbsoluteContentSize.Y
+
+        Section.Height = Content + 42
+        Body.CanvasSize = UDim2.fromOffset(0, Content + 4)
+
+        if Section.State ~= "Docked" then
+            return
+        end
+
+        local Instant = os.clock() - Section.Born < 1 or not Section.Column.Holder.Visible
+
+        Glide(Section, "Size", { Size = UDim2.new(1, -4, 0, Section.Height) }, Instant)
+        Section.Column:Layout(Instant)
+    end
 
     function Section:SetText(Text)
         Title.Text = tostring(Text)
     end
 
     function Section:SetVisibility(Bool)
-        Frame.Visible = Bool
+        Section.Hidden = not Bool
+        Entry.Enabled = Bool
+
+        if Section.State == "Floating" then
+            Section.Fader:Set(Bool and Library.MenuOpen)
+        else
+            Frame.Visible = Bool
+        end
+
+        if Section.Column then
+            Section.Column:Layout()
+        end
     end
+
+    function Section:Lift()
+        local Position = Frame.AbsolutePosition - Library.DragHolder.AbsolutePosition
+        local Size = Frame.AbsoluteSize
+
+        SetState("Dragging")
+        Section.Column = nil
+        Frame.Parent = Library.DragHolder
+
+        Glide(Section, "Position", { Position = UDim2.fromOffset(Position.X, Position.Y) }, true)
+        Glide(Section, "Size", { Size = UDim2.fromOffset(Size.X, Size.Y) }, true)
+    end
+
+    function Section:Settle()
+        if Section.State ~= "Landing" then
+            return
+        end
+
+        Library.Landing[Section] = nil
+        SetState("Docked")
+
+        Frame.Parent = Section.Column.Scroll
+        Frame.ZIndex = 1
+
+        Glide(Section, "Position", { Position = UDim2.fromOffset(2, Section.Y) }, true)
+        Glide(Section, "Size", { Size = UDim2.new(1, -4, 0, Section.Height) }, true)
+    end
+
+    function Section:Dock(Target, Index)
+        local Scroll = Target.Scroll
+        local Origin = Library.DragHolder.AbsolutePosition
+
+        Index = math.clamp(Index or #Target.Items + 1, 1, #Target.Items + 1)
+        table.insert(Target.Items, Index, Section)
+
+        Section.Column = Target
+        Section.Page = Target.Page
+        Section.Side = table.find(Target.Page.Columns, Target)
+        Library.Landing[Section] = true
+
+        SetState("Landing")
+        Body.CanvasPosition = Vector2.zero
+        Target:Layout()
+
+        local Goal = Scroll.AbsolutePosition - Scroll.CanvasPosition - Origin + Vector2.new(2, Section.Y)
+
+        Glide(Section, "Size", { Size = UDim2.fromOffset(Scroll.AbsoluteSize.X - 4, Section.Height) })
+        Glide(Section, "Position", { Position = UDim2.fromOffset(Goal.X, Goal.Y) }).Completed:Connect(function(State)
+            if State == Enum.PlaybackState.Completed then
+                Section:Settle()
+            end
+        end)
+    end
+
+    function Section:Float()
+        local Position = Frame.AbsolutePosition - Library.Holder.AbsolutePosition
+        local Size = Frame.AbsoluteSize
+        local Screen = Library.Holder.AbsoluteSize
+
+        Section.FloatSize = Section.FloatSize or Vector2.new(Size.X, math.min(Size.Y, 420))
+
+        local Width, Height = Section.FloatSize.X, Section.FloatSize.Y
+        local Goal = Vector2.new(
+            math.clamp(Position.X, 0, math.max(Screen.X - Width, 0)),
+            math.clamp(Position.Y, 0, math.max(Screen.Y - Height, 0))
+        )
+
+        SetState("Floating")
+        Section.Column = nil
+        Frame.Parent = Library.Holder
+        Frame.ZIndex = NextOrder() + 1
+
+        Glide(Section, "Position", { Position = UDim2.fromOffset(Position.X, Position.Y) }, true)
+        Glide(Section, "Position", { Position = UDim2.fromOffset(Goal.X, Goal.Y) })
+        Glide(Section, "Size", { Size = UDim2.fromOffset(Width, Height) })
+    end
+
+    local Pending = nil
+    local Resizing = nil
+
+    Connect(Handle.InputBegan, function(Input)
+        if not IsClick(Input) or not CanDrag() then
+            return
+        end
+
+        if Section.State == "Floating" then
+            Frame.ZIndex = NextOrder() + 1
+        end
+
+        if Section.State == "Floating" or Section.State == "Docked" then
+            Pending = MouseAbs()
+        end
+    end)
+
+    Connect(Grip.InputBegan, function(Input)
+        if IsClick(Input) and Section.State == "Floating" then
+            Resizing = { Mouse = MouseAbs(), Size = Frame.AbsoluteSize }
+            Frame.ZIndex = NextOrder() + 1
+        end
+    end)
+
+    Connect(UserInputService.InputChanged, function(Input)
+        if not IsMove(Input) then
+            return
+        end
+
+        local Mouse = MouseAbs()
+
+        if Pending and (Mouse - Pending).Magnitude > 4 then
+            Pending = nil
+            BeginDrag(Section)
+        elseif Resizing then
+            local Screen = Library.Holder.AbsoluteSize
+            local Delta = Mouse - Resizing.Mouse
+            local Width = math.clamp(Resizing.Size.X + Delta.X, 150, math.max(Screen.X, 150))
+            local Height = math.clamp(Resizing.Size.Y + Delta.Y, 60, math.max(Screen.Y, 60))
+
+            Section.FloatSize = Vector2.new(Width, Height)
+            Glide(Section, "Size", { Size = UDim2.fromOffset(Width, Height) }, true)
+        end
+    end)
+
+    Connect(UserInputService.InputEnded, function(Input)
+        if IsClick(Input) then
+            Pending = nil
+            Resizing = nil
+        end
+    end)
+
+    Connect(Body:GetPropertyChangedSignal("CanvasPosition"), function()
+        Library:CloseAll()
+    end)
+
+    Connect(List:GetPropertyChangedSignal("AbsoluteContentSize"), Measure)
+
+    table.insert(Home.Items, Section)
+    Home:Layout(true)
+    Measure()
 
     return setmetatable(Section, Library)
 end
@@ -2334,7 +2833,6 @@ Library.Toggle = function(Self, Params)
     })
     New("UIListLayout", { Parent = Root, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
 
-    -- UnSeletedToggle_Button / SeletedToggle_Button
     local Row = New("TextButton", {
         Parent = Root,
         Size = UDim2.new(1, 0, 0, 16),
@@ -2587,7 +3085,6 @@ Library.Slider = function(Self, Params)
         Items = { },
     }
 
-    -- Silder_Frame
     local Root = New("Frame", {
         Parent = Self.Container,
         BackgroundTransparency = 1,
@@ -2606,7 +3103,6 @@ Library.Slider = function(Self, Params)
         LayoutOrder = 1,
     })
 
-    -- Silder_base
     local Bar = New("TextButton", {
         Parent = Root,
         Size = UDim2.new(1, 0, 0, 13),
@@ -2744,7 +3240,6 @@ Library.Dropdown = function(Self, Params)
         LayoutOrder = 1,
     })
 
-    -- Dropdown_Frame
     local Box = New("TextButton", {
         Parent = Root,
         Size = UDim2.new(1, 0, 0, 16),
@@ -2771,7 +3266,6 @@ Library.Dropdown = function(Self, Params)
         Text = "+",
     })
 
-    -- Drop_frame
     local Popup = New("Frame", {
         Parent = Library.PopupHolder,
         Visible = false,
@@ -3237,7 +3731,7 @@ Library.Textbox = function(Self, Params)
 end
 --#endregion
 
---#region InitWindow (Configs_Window + settings page)
+--#region InitWindow
 local function ConfigPath(Name)
     return ConfigsFolder .. "/" .. Name .. ".json"
 end
@@ -3245,7 +3739,6 @@ end
 local function BuildConfigWindow(Window)
     local WindowSize = Window.Size
 
-    -- Configs_Window
     local Frame = New("Frame", {
         Parent = Library.Holder,
         Size = UDim2.fromOffset(250, 275),
@@ -3267,7 +3760,6 @@ local function BuildConfigWindow(Window)
     TitleGradient(Title)
     Draggable(Title, Frame)
 
-    -- Configs_frame
     local ListFrame = New("Frame", {
         Parent = Frame,
         Position = UDim2.fromOffset(0, 21),
@@ -3291,7 +3783,6 @@ local function BuildConfigWindow(Window)
     New("UIPadding", { Parent = Scroll, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5) })
     New("UIListLayout", { Parent = Scroll, Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder })
 
-    -- config name box
     local NameFrame = New("Frame", {
         Parent = Frame,
         Position = UDim2.fromOffset(0, 184),
