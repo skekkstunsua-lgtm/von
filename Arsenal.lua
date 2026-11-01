@@ -106,8 +106,8 @@
 --#region library setup
     local amity = loadstring(game:HttpGet('https://raw.githubusercontent.com/78n/Roblox/refs/heads/main/Lua/Libraries/DataToCode/DataToCode.luau'))()
 
-    local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/skekkstunsua-lgtm/von/refs/heads/main/BullshitLib.lua"))()
-
+    local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/sametexe001/sametlibs/refs/heads/main/secrethaxx/Library.lua"))()
+    
     local EspLib = loadstring(game:HttpGet('https://github.com/skekkstunsua-lgtm/von/raw/refs/heads/main/EspLib.lua'))()
 
     local Window = Library:Window({
@@ -185,7 +185,7 @@ do -- combat
     local blinkactive = false;
     local savedblinkCF = nil;
     local KillAllEnabled = false;
-    local ForceHitEnabled = false;
+    local ForceHitEnabled = true;
     local ProjectileSilentEnabled = false
     local LastOrigin = nil
     local LastTarget = nil
@@ -431,24 +431,24 @@ do -- combat
         function GetVisibleTarget()
             for _, plr in Players:GetPlayers() do
                     if plr == LocalPlayer or plr.Team == LocalPlayer.Team then 
-                    continue 
+                        continue 
                     end
                     
                     local data = plr.Character
                     
                     if not data then 
-                    continue 
+                        continue 
                     end
 
                     local head = data:FindFirstChild("Head")
                     if not head or head.Position.Y < -250 then 
-                    continue 
+                        continue 
                     end
                     
                     local hum = data:FindFirstChild("Humanoid")
                     
                     if not hum or hum.Health <= 0 then 
-                    continue 
+                        continue 
                     end
 
                     visparams.FilterDescendantsInstances = {LocalPlayer.Character, data}
@@ -456,13 +456,16 @@ do -- combat
                     local visresult = workspace:Raycast(origin, head.Position - origin, visparams)
 
                     if not visresult then
-                    local offset = ManipEnabled and findminoffset(head, origin) or nil
-                    return { FinalPart = head, offset = offset }
-                    elseif ManipEnabled then
-                    local offset = findminoffset(head, origin)
-                    if offset then
-                            return { FinalPart = head, offset = offset }
-                    end
+                            local offset = ManipEnabled and findminoffset(head, origin) or nil
+                            return { 
+                                FinalPart = head, 
+                                offset = offset 
+                            }
+                        elseif ManipEnabled then
+                            local offset = findminoffset(head, origin)
+                            if offset then
+                                return { FinalPart = head, offset = offset }
+                        end
                     end
             end
         end
@@ -1072,14 +1075,14 @@ do -- combat
             end 
         })
 
-        Sections.exploits:Toggle({
+        --[[Sections.exploits:Toggle({
             Name = 'force hit';
             Flag = 'forcehit';
             Default = false;
             Callback = function(v)
                 ForceHitEnabled = v;
             end 
-        })
+        })]]
 
         Sections.exploits:Toggle({
             Name = 'tp shoot';
