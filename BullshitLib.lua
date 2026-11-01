@@ -1,5 +1,3 @@
-
-
 if getgenv().Library and type(getgenv().Library) == "table" and getgenv().Library.Exit then
     getgenv().Library:Exit()
 end
