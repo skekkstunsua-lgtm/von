@@ -1,11 +1,4 @@
---[[
-    Vergil UI Library
-    Look:  Vergil.lol layout (G2L design)
-    API:   BullshitLib / secrethaxx compatible (Window, Page, Section, Toggle, Slider,
-           Dropdown, Label, Button, Textbox, Colorpicker, Keybind, Watermark,
-           KeybindList, Notification, InitWindow, Flags, configs)
-    Font:  ProggyClean (downloaded + getcustomasset)
-]]
+
 
 if getgenv().Library and type(getgenv().Library) == "table" and getgenv().Library.Exit then
     getgenv().Library:Exit()
