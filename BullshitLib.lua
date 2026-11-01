@@ -1,5 +1,5 @@
-if getgenv().Library and type(getgenv().Library) == "table" and getgenv().Library.Exit then
-    getgenv().Library:Exit()
+if getgenv().VergilLibrary and type(getgenv().VergilLibrary) == "table" and getgenv().VergilLibrary.Exit then
+    getgenv().VergilLibrary:Exit()
 end
 
 cloneref = cloneref or function(Object) return Object end
@@ -593,7 +593,7 @@ Library.Exit = function(Self)
     Library.Blur:Destroy()
 
     Library.Unloaded = true
-    getgenv().Library = nil
+    getgenv().VergilLibrary = nil
 end
 
 Library.GetConfig = function(Self)
@@ -4125,6 +4125,6 @@ Library.InitWindow = function(Self)
 end
 --#endregion
 
-getgenv().Library = Library
+getgenv().VergilLibrary = Library
 
 return Library
