@@ -17,7 +17,7 @@ elseif game.GameId == 7633926880 then -- bloxstrike
 elseif game.GameId == 73885730 then -- prison life
     loadstring(game:HttpGet('https://raw.githubusercontent.com/skekkstunsua-lgtm/von/refs/heads/main/prison%20life'))()
 elseif game.GameId == 2862098693 then -- project delta
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/skekkstunsua-lgtm/von/refs/heads/main/Project%20Delta.lua')()
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/skekkstunsua-lgtm/von/refs/heads/main/Project%20Delta.lua'))()
 else 
 
     game.Players.LocalPlayer:Kick("game is unsupported. "..game.GameId)
