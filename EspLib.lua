@@ -83,6 +83,7 @@ local EspLib = {
             Shading = Enum.AdornShading.XRayShaded;
             AlwaysOnTop = true;
             Transparency = 0;
+            SizePadding = 0.01;
         };
 
     },
@@ -308,7 +309,7 @@ function EspLib.Chams:DoBHAChams(chr: Instance, allowlist: {any})
             local BoxHandleAdornment = Instance.new("BoxHandleAdornment");
             BoxHandleAdornment.Parent = v;
             BoxHandleAdornment.Adornee = v;
-            BoxHandleAdornment.Size = v.Size + Vector3.new(0.01, 0.01, 0.01);
+            BoxHandleAdornment.Size = v.Size + (Vector3.new(1, 1, 1)* Settings.SizePadding);
             BoxHandleAdornment.Color3 = Settings.Color;
             BoxHandleAdornment.Shading = Settings.Shading;
             BoxHandleAdornment.AlwaysOnTop = Settings.AlwaysOnTop;
@@ -336,6 +337,7 @@ function EspLib.Chams:Update()
                 Inst.Shading = Settings.Shading;
                 Inst.AlwaysOnTop = Settings.AlwaysOnTop;
                 Inst.Transparency = Settings.Transparency;
+                Inst.Size = Inst.Parent.Size + (Vector3.new(1, 1, 1)* Settings.SizePadding)
                 Inst.Visible = true;
             elseif Inst:IsA("BoxHandleAdornment") and not Settings.Enabled then
                 Inst.Visible = false;
