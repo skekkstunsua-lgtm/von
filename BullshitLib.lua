@@ -2251,6 +2251,294 @@ Library.TargetHUD = function(Self, Params)
 end
 --#endregion
 
+--#region Audioshit
+Library.AudioPlayer = function(Self, Params)
+    Params = Params or { }
+
+    local audioPlayback = {
+        title = "",
+        artist = "",
+        album = "",
+        source = "",
+        position = 0,   -- ms
+        duration = 0,   -- ms
+        isPlaying = true,
+        available = true,
+        Items = { },
+    }
+
+    local outer = New("Frame", {
+        Parent = Library.Holder,
+        AnchorPoint = Vector2.new(0.5, 1),
+        Position = UDim2.new(0.5, 0, 1, -140),
+        Size = UDim2.fromOffset(345, 135),
+        BackgroundTransparency = 0,
+        BackgroundColor3 = Color3.fromRGB(28, 28, 28),
+        Visible = false,
+    })
+    Outline(outer, "Border")
+    Draggable(outer, outer)
+
+    local inner = New("Frame", {
+        Parent = outer,
+        Position = UDim2.fromOffset(5, 6),
+        Size = UDim2.new(1, -10, 1, -12),
+        BackgroundTransparency = 0,
+        BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+    })
+    Outline(inner)
+    Shade(inner, -90)
+    Highlight(inner, "Window")
+
+    local title = New("TextLabel", {
+        Parent = outer,
+        Position = UDim2.fromOffset(13, 7),
+        Size = UDim2.new(1, -26, 0, 20),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = Params.Name or "Audio Player",
+    })
+    TitleGradient(title)
+
+    local tag = New("TextLabel", {
+        Parent = outer,
+        Position = UDim2.fromOffset(13, 7),
+        Size = UDim2.new(1, -26, 0, 20),
+        TextXAlignment = Enum.TextXAlignment.Right,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Text = "",
+    })
+    Themed(function() tag.TextColor3 = Theme["Dim Text"] end)
+
+    local cover = New("ImageLabel", {
+        Parent = inner,
+        Position = UDim2.fromOffset(8, 24),
+        Size = UDim2.fromOffset(85, 85),
+        BackgroundTransparency = 1,
+        Image = "",
+    })
+    Outline(cover)
+
+    local info = New("Frame", {
+        Parent = inner,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(103, 23),
+        Size = UDim2.new(1, -111, 0, 85),
+    })
+    New("UIPadding", { Parent = info, PaddingTop = UDim.new(0, 8), PaddingLeft = UDim.new(0, 2), PaddingRight = UDim.new(0, 2) })
+    New("UIListLayout", { Parent = info, Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder })
+
+    local function infoLabel(order)
+        return New("TextLabel", {
+            Parent = info,
+            Size = UDim2.new(1, 0, 0, 15),
+            RichText = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextStrokeTransparency = 1,
+            LayoutOrder = order,
+        })
+    end
+
+    local function escape(text)
+        return (tostring(text):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
+    end
+
+    local function colored(key, text)
+        return string.format('<font color="%s">%s</font>', ToRichColor(Theme[key]), text)
+    end
+
+    local function formatTime(ms)
+        local totalSeconds = math.max(0, math.floor((tonumber(ms) or 0) / 1000))
+        local hours = math.floor(totalSeconds / 3600)
+        local minutes = math.floor((totalSeconds % 3600) / 60)
+        local seconds = totalSeconds % 60
+
+        if hours > 0 then
+            return string.format("%d:%02d:%02d", hours, minutes, seconds)
+        end
+
+        return string.format("%d:%02d", minutes, seconds)
+    end
+
+    local songTitle = infoLabel(1)
+    local songArtist = infoLabel(2)
+    local songAlbum = infoLabel(3)
+
+    local bar = New("Frame", {
+        Parent = info,
+        Size = UDim2.new(1, 0, 0, 13),
+        BackgroundTransparency = 0,
+        LayoutOrder = 4,
+    })
+    Themed(function() bar.BackgroundColor3 = Theme.Hover end)
+    Outline(bar)
+
+    local fill = New("Frame", {
+        Parent = bar,
+        Size = UDim2.fromScale(0, 1),
+        BackgroundTransparency = 0,
+        BackgroundColor3 = Color3.new(1, 1, 1), -- white so the gradient shows true colors
+        ClipsDescendants = true,
+    })
+
+    local fillGradient = New("UIGradient", { Parent = fill })
+    Themed(function()
+        fillGradient.Color = ColorSequence.new(Theme["Element Accent"], Theme.Accent)
+    end)
+
+    local sheen = New("Frame", {
+        Parent = fill,
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 0,
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        ZIndex = 2,
+    })
+    New("UIGradient", {
+        Parent = sheen,
+        Rotation = 90,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 0.7),
+            NumberSequenceKeypoint.new(1, 1),
+        },
+    })
+
+    New("UIShadow", { Parent = fill })
+
+    local elapsedLabel = New("TextLabel", {
+        Parent = bar,
+        Position = UDim2.fromOffset(4, 0),
+        Size = UDim2.new(0.5, -4, 1, 0),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 3,
+        Text = "0:00",
+    })
+
+    local totalLabel = New("TextLabel", {
+        Parent = bar,
+        Position = UDim2.fromScale(0.5, 0),
+        Size = UDim2.new(0.5, -4, 1, 0),
+        TextXAlignment = Enum.TextXAlignment.Right,
+        ZIndex = 3,
+        Text = "0:00",
+    })
+
+    audioPlayback.Items = {
+        AudioPlayer = Wrap(outer),
+        Cover = Wrap(cover),
+        Title = Wrap(songTitle),
+        Artist = Wrap(songArtist),
+        Album = Wrap(songAlbum),
+        Source = Wrap(tag),
+        Bar = Wrap(bar),
+        Fill = Wrap(fill),
+        Elapsed = Wrap(elapsedLabel),
+        Total = Wrap(totalLabel),
+    }
+
+    local function renderText()
+        local available = audioPlayback.available
+        local titleText = (available and audioPlayback.title ~= "") and audioPlayback.title or "Nothing playing"
+        local artistText = (available and audioPlayback.artist ~= "") and audioPlayback.artist or "N/A"
+        local albumText = (available and audioPlayback.album ~= "") and audioPlayback.album or "N/A"
+
+        songTitle.Text = colored("Text", escape(titleText))
+        songArtist.Text = colored("Option Text", "Artist - ") .. colored("Dim Text", escape(artistText))
+        songAlbum.Text = colored("Option Text", "Album - ") .. colored("Dim Text", escape(albumText))
+
+        local source = audioPlayback.source
+        if audioPlayback.isPlaying == false then
+            source = source ~= "" and (source .. " [paused]") or "[paused]"
+        end
+        tag.Text = source
+    end
+
+    local function updateBar(instant)
+        local percent = (audioPlayback.duration > 0) and math.clamp(audioPlayback.position / audioPlayback.duration, 0, 1) or 0
+
+        if instant then
+            fill.Size = UDim2.fromScale(percent, 1)
+        else
+            Tween(fill, { Size = UDim2.fromScale(percent, 1) }, 0.12)
+        end
+
+        elapsedLabel.Text = formatTime(audioPlayback.position)
+        totalLabel.Text = formatTime(audioPlayback.duration)
+    end
+
+    -- re-render rich text colors when the theme changes
+    Themed(renderText)
+
+    function audioPlayback:SetText(layer, text)
+        text = tostring(text or "")
+
+        if layer == 1 then
+            audioPlayback.title = text
+        elseif layer == 2 then
+            audioPlayback.artist = text
+        elseif layer == 4 then
+            audioPlayback.album = text
+        end
+
+        renderText()
+    end
+
+    function audioPlayback:SetImage(id)
+        cover.Image = tostring(id or "")
+    end
+
+    function audioPlayback:SetVisibility(bool)
+        outer.Visible = bool
+    end
+
+    -- ms in
+    function audioPlayback:SetTime(current, total)
+        if total ~= nil then
+            audioPlayback.duration = tonumber(total) or 0
+        end
+
+        audioPlayback.position = math.clamp(tonumber(current) or 0, 0, math.max(audioPlayback.duration, 0))
+        updateBar()
+    end
+
+    function audioPlayback:SetDuration(total)
+        audioPlayback.duration = tonumber(total) or 0
+        updateBar(true)
+    end
+
+    -- takes the raw event ({ playback = { ... } }) or just the playback table
+    function audioPlayback:Update(data)
+        local playback = data and (data.playback or data)
+
+        if type(playback) ~= "table" then
+            return
+        end
+
+        local previousTitle = audioPlayback.title
+        local previousDuration = audioPlayback.duration
+
+        audioPlayback.available = playback.available ~= false
+        audioPlayback.isPlaying = playback.is_playing ~= false
+        audioPlayback.title = tostring(playback.title or "")
+        audioPlayback.artist = tostring(playback.artist or "")
+        audioPlayback.album = tostring(playback.album or "")
+        audioPlayback.source = tostring(playback.source or "")
+        audioPlayback.duration = tonumber(playback.duration_ms) or 0
+        audioPlayback.position = math.clamp(tonumber(playback.position_ms) or 0, 0, math.max(audioPlayback.duration, 0))
+
+        renderText()
+
+        -- snap on track change so the bar doesn't slide back from the old song
+        local trackChanged = audioPlayback.title ~= previousTitle or audioPlayback.duration ~= previousDuration
+        updateBar(trackChanged)
+    end
+
+    renderText()
+    updateBar(true)
+
+    return setmetatable(audioPlayback, Library)
+end
+--#endregion
+
 --#region EspPreview
 Library.EspPreview = function(Self, Params)
     Params = Params or { }
