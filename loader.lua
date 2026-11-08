@@ -1,3 +1,5 @@
+-- github takes two years to fucking update bro
+
 if not game:IsLoaded() then 
     game.Loaded:Wait()
 end
