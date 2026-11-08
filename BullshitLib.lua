@@ -591,7 +591,9 @@ Library.Exit = function(Self)
     Library.DragHolder:Destroy()
     Library.SnowHolder:Destroy()
     Library.Blur:Destroy()
-
+    if Library.Loading then
+        Library.Loading.Gui:Destroy()
+    end
     Library.Unloaded = true
     getgenv().VergilLibrary = nil
 end
@@ -877,7 +879,177 @@ Library.Notification = function(Self, Params)
     end)
 end
 --#endregion
-
+--#region Loader
+Library.Loader = function(Self, Params)
+    Params = Params or { }
+    local Assets = Library.Directory .. Library.Folders.Assets
+    local Sheets = { }
+    for Index = 1, 3 do
+        local Path = `{Assets}/von_{Index}.png`
+        if not isfile(Path) then
+            writefile(Path, base64decode(game:HttpGet(`https://raw.githubusercontent.com/skekkstunsua-lgtm/von/refs/heads/main/von_{Index}.txt`)))
+        end
+        Sheets[Index] = getcustomasset(Path)
+    end
+    ContentProvider:PreloadAsync(Sheets)
+    local Gui = New("ScreenGui", {
+        Parent = GetHui(),
+        IgnoreGuiInset = true,
+        ResetOnSpawn = false,
+        DisplayOrder = 103,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    })
+    local Main = New("Frame", {
+        Parent = Gui,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(256, 314),
+        BackgroundTransparency = 0,
+    })
+    Themed(function() Main.BackgroundColor3 = Theme.Window end)
+    local Scale = New("UIScale", { Parent = Main, Scale = 0.85 })
+    local Stroke = New("UIStroke", {
+        Parent = Main,
+        Color = Color3.new(1, 1, 1),
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        LineJoinMode = Enum.LineJoinMode.Miter,
+        BorderStrokePosition = StrokeInner,
+        ZIndex = 2,
+    })
+    local StrokeGradient = New("UIGradient", { Parent = Stroke })
+    Themed(function() StrokeGradient.Color = AccentSequence(Theme.Accent:Lerp(Theme.Window, 0.6)) end)
+    New("UIStroke", {
+        Parent = Main,
+        Color = Color3.new(0, 0, 0),
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        LineJoinMode = Enum.LineJoinMode.Miter,
+        BorderOffset = UDim.new(0, 1),
+        BorderStrokePosition = StrokeInner,
+    })
+    local Title = New("TextLabel", {
+        Parent = Main,
+        Position = UDim2.fromOffset(10, 8),
+        Size = UDim2.new(1, -20, 0, 14),
+        RichText = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = Params.Name or Library.Name,
+    })
+    MainGradient(Title)
+    local Tag = New("TextLabel", {
+        Parent = Main,
+        Position = UDim2.fromOffset(10, 8),
+        Size = UDim2.new(1, -20, 0, 14),
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Text = "loader",
+    })
+    Themed(function() Tag.TextColor3 = Theme["Dim Text"] end)
+    local LogoHolder = New("Frame", {
+        Parent = Main,
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 28),
+        Size = UDim2.fromOffset(236, 236),
+        BackgroundTransparency = 0,
+    })
+    Themed(function() LogoHolder.BackgroundColor3 = Theme.Background end)
+    Outline(LogoHolder)
+    local Logo = New("ImageLabel", {
+        Parent = LogoHolder,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(220, 220),
+        BackgroundTransparency = 1,
+        Image = Sheets[1],
+        ImageRectSize = Vector2.new(170, 170),
+    })
+    local Status = New("TextLabel", {
+        Parent = Main,
+        Position = UDim2.fromOffset(10, 274),
+        Size = UDim2.new(1, -20, 0, 12),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "loading...",
+    })
+    Themed(function() Status.TextColor3 = Theme["Dim Text"] end)
+    local Percent = New("TextLabel", {
+        Parent = Main,
+        Position = UDim2.fromOffset(10, 274),
+        Size = UDim2.new(1, -20, 0, 12),
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Text = "0%",
+    })
+    Themed(function() Percent.TextColor3 = Theme.Accent end)
+    local Track = New("Frame", {
+        Parent = Main,
+        Position = UDim2.fromOffset(10, 294),
+        Size = UDim2.new(1, -20, 0, 6),
+        BackgroundTransparency = 0,
+    })
+    Themed(function() Track.BackgroundColor3 = Theme.Hover end)
+    Outline(Track)
+    local Fill = New("Frame", {
+        Parent = Track,
+        Size = UDim2.fromScale(0, 1),
+        BackgroundTransparency = 0,
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        ClipsDescendants = true,
+    })
+    local FillGradient = New("UIGradient", { Parent = Fill })
+    Themed(function() FillGradient.Color = ColorSequence.new(Theme["Element Accent"], Theme.Accent) end)
+    local Shimmer = New("Frame", {
+        Parent = Fill,
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 0,
+        BackgroundColor3 = Color3.new(1, 1, 1),
+    })
+    local ShimmerGradient = New("UIGradient", {
+        Parent = Shimmer,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.5, 0.55),
+            NumberSequenceKeypoint.new(1, 1),
+        },
+    })
+    local LastFrame = nil
+    local Animation = Connect(RunService.RenderStepped, function()
+        local Now = os.clock()
+        StrokeGradient.Rotation = Now * 90 % 360
+        ShimmerGradient.Offset = Vector2.new(Now * 0.8 % 2 - 1, 0)
+        local Frame = math.floor(Now * 25) % 75
+        if Frame == LastFrame then
+            return
+        end
+        LastFrame = Frame
+        local Cell = Frame % 36
+        Logo.Image = Sheets[Frame // 36 + 1]
+        Logo.ImageRectOffset = Vector2.new(Cell % 6 * 170, Cell // 6 * 170)
+    end)
+    TweenService:Create(Scale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+    local Loader = { Gui = Gui }
+    Library.Loading = Loader
+    function Loader:SetProgress(Alpha, Text)
+        Alpha = math.clamp(Alpha, 0, 1)
+        Tween(Fill, { Size = UDim2.fromScale(Alpha, 1) }, 0.25)
+        Percent.Text = `{math.floor(Alpha * 100)}%`
+        if Text then
+            Status.Text = Text
+        end
+        task.wait()
+    end
+    function Loader:Finish()
+        Loader:SetProgress(1, "done")
+        task.wait(0.35)
+        local Out = TweenService:Create(Scale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
+        Out:Play()
+        Out.Completed:Wait()
+        Animation:Disconnect()
+        Gui:Destroy()
+        Library.Loading = nil
+        if Library.WindowObject then
+            Library.WindowObject:SetOpen(true)
+        end
+    end
+    return Loader
+end
+--#endregion
 --#region Docking
 local Drag = nil
 
