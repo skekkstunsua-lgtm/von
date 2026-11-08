@@ -77,12 +77,22 @@ local EspLib = {
                 Color = White,
             },
         },
+        bha = {
+            Enabled = false;
+            Color = Color3.new(1,1,1);
+            Shading = Enum.AdornShading.XRayShaded;
+            AlwaysOnTop = true;
+            Transparency = 0;
+        };
+
     },
 
     Cache = { },
     Connections = { },
+    Chams = {
+        Players = {};
+    }
 }
-
 local Cache = EspLib.Cache
 local Shadow = { }
 local Styles = { }
@@ -270,6 +280,70 @@ local function PaintHealth(Esp)
     Esp.BarGradient.Transparency = Level(Esp.Shown)
     Esp.Labels.Health.Position = UDim2.new(0, -12, 1 - Esp.Shown, 0)
 end
+
+--[[local function DoBHAChams(chr: Instance, allowlist: {any}, params: {any})
+    params = params or {}
+    local CIntances = {}
+    for i, v in chr:GetChildren() do
+        if table.find(allowlist, v.Name) then
+            local BoxHandleAdornment = Instance.new("BoxHandleAdornment");
+            BoxHandleAdornment.Parent = v;
+            BoxHandleAdornment.Adornee = v;
+            BoxHandleAdornment.Size = v.Size + Vector3.new(0.01, 0.01, 0.01);
+            BoxHandleAdornment.Color3 = params.color;
+            BoxHandleAdornment.Shading = params.shading;
+            BoxHandleAdornment.AlwaysOnTop = params.alwaysOnTop;
+            BoxHandleAdornment.Transparency = params.transparency;
+            BoxHandleAdornment.Name = "\0"
+            table.insert(CIntances, BoxHandleAdornment)
+        end
+    end
+    return CIntances;
+end]]
+function EspLib.Chams:DoBHAChams(chr: Instance, allowlist: {any})
+    local Settings = EspLib["Table"]["bha"]
+    local CIntances = {}
+    for _, v in chr:GetChildren() do
+        if table.find(allowlist, v.Name) then
+            local BoxHandleAdornment = Instance.new("BoxHandleAdornment");
+            BoxHandleAdornment.Parent = v;
+            BoxHandleAdornment.Adornee = v;
+            BoxHandleAdornment.Size = v.Size + Vector3.new(0.01, 0.01, 0.01);
+            BoxHandleAdornment.Color3 = Settings.Color;
+            BoxHandleAdornment.Shading = Settings.Shading;
+            BoxHandleAdornment.AlwaysOnTop = Settings.AlwaysOnTop;
+            BoxHandleAdornment.Transparency = Settings.Transparency;
+            BoxHandleAdornment.Name = "\0";
+            BoxHandleAdornment.Visible = Settings.Enabled;
+            table.insert(CIntances, BoxHandleAdornment);
+        end;
+    end;
+    EspLib.Chams.Players[chr.Name] = CIntances;
+end;
+
+function EspLib.Chams:ClearPlrChams(plr: string)
+    for _, v in EspLib.Chams.Players[plr] do
+        v:Destroy()
+    end
+end
+
+function EspLib.Chams:Update()
+    local Settings = EspLib["Table"]["bha"]
+    for _, plr in EspLib.Chams.Players do
+        for _, Inst in plr do
+            if Inst:IsA("BoxHandleAdornment") and Settings.Enabled then
+                Inst.Color3 = Settings.Color;
+                Inst.Shading = Settings.Shading;
+                Inst.AlwaysOnTop = Settings.AlwaysOnTop;
+                Inst.Transparency = Settings.Transparency;
+                Inst.Visible = true;
+            elseif Inst:IsA("BoxHandleAdornment") and not Settings.Enabled then
+                Inst.Visible = false;
+            end;
+        end;
+    end;
+end;
+
 
 local function SetHealth(Esp)
     local Humanoid = Esp.Humanoid
