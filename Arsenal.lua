@@ -860,6 +860,7 @@ do -- combat
 
 
                     if t and c and c:FindFirstChild("Head") then 
+                        setthreadidentity(2)
                         local works = pcall(firebullet, false)
 
                         if not works then 
