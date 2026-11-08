@@ -330,8 +330,11 @@ end
 
 function EspLib.Chams:Update()
     local Settings = EspLib["Table"]["bha"]
-    for _, plr in EspLib.Chams.Players do
-        for _, Inst in plr do
+    for name, list in EspLib.Chams.Players do
+        --[[for _, Inst in plr do
+            local part = Inst.Parent;
+            if not part then
+                --table.remove()
             if Inst:IsA("BoxHandleAdornment") and Settings.Enabled then
                 Inst.Color3 = Settings.Color;
                 Inst.Shading = Settings.Shading;
@@ -342,7 +345,24 @@ function EspLib.Chams:Update()
             elseif Inst:IsA("BoxHandleAdornment") and not Settings.Enabled then
                 Inst.Visible = false;
             end;
-        end;
+        end;]]
+        for i = #list, 1, -1 do
+            local inst = list[i];
+            local part = inst.Parent
+            -- my name is corn and im a bitch 
+            if not part then
+                table.remove(list, i)
+            elseif inst:IsA("BoxHandleAdornment") and Settings.Enabled then
+                inst.Color3 = Settings.Color;
+                inst.Shading = Settings.Shading;
+                inst.AlwaysOnTop = Settings.AlwaysOnTop;
+                inst.Transparency = Settings.Transparency;
+                inst.Size = inst.Parent.Size + (Vector3.new(1, 1, 1)* Settings.SizePadding)
+                inst.Visible = true;
+            else
+                inst.Visible = false;
+            end
+        end
     end;
 end;
 
