@@ -1330,9 +1330,9 @@ do
         local FakeLagEnabled, FakeLagRate = false, 2
 
         local ApplyFakeLag = function()
-            if identifyexecutor() ~= "Atomic" then 
-                setfflag("S2PhysicsSenderRate", FakeLagEnabled and tostring(FakeLagRate) or DefaultSendRate)
-            end
+            --if identifyexecutor() ~= "Atomic" then 
+            --    setfflag("S2PhysicsSenderRate", FakeLagEnabled and tostring(FakeLagRate) or DefaultSendRate)
+            --end
         end
         local old; old = hookmetamethod(game, "__namecall", function(self, ...)
             local Args = {...}
