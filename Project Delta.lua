@@ -1329,11 +1329,11 @@ do
         local DefaultSendRate = getfflag("S2PhysicsSenderRate")
         local FakeLagEnabled, FakeLagRate = false, 2
 
-        local ApplyFakeLag = function()
-            --if identifyexecutor() ~= "Atomic" then 
-            --    setfflag("S2PhysicsSenderRate", FakeLagEnabled and tostring(FakeLagRate) or DefaultSendRate)
-            --end
-        end
+        --[[local ApplyFakeLag = function()
+            if identifyexecutor() ~= "Atomic" then 
+                setfflag("S2PhysicsSenderRate", FakeLagEnabled and tostring(FakeLagRate) or DefaultSendRate)
+            end
+        end]]
         local old; old = hookmetamethod(game, "__namecall", function(self, ...)
             local Args = {...}
             if not checkcaller() then
@@ -3040,11 +3040,11 @@ do
                 Callback = function(v)
                 FakeLatency = v;
                     FakeLagEnabled = v
-                    ApplyFakeLag()
+                    --ApplyFakeLag()
                 end
             })
 
-            Sections.movement:Slider({
+            --[[Sections.movement:Slider({
                 Name = 'fakelag send rate';
                 Flag = 'fakelrate';
                 Default = 2;
@@ -3055,7 +3055,7 @@ do
                     FakeLagRate = v
                     ApplyFakeLag()
                 end
-            })
+            })]]
 
 
             Sections.movement:Toggle({
