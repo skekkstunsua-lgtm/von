@@ -2251,6 +2251,170 @@ Library.TargetHUD = function(Self, Params)
 end
 --#endregion
 
+--#region InventoryViewer
+Library.InventoryViewer = function(Self, Params)
+    Params = Params or { }
+
+    local Columns, Rows = 5, 2
+    local SlotSize, Gap, Pad = 85, 2, 2
+    local TopOffset = 24
+    local MaxSlots = Columns * Rows
+
+    local Viewer = {
+        Slots = { },
+        Items = { },
+    }
+
+    local InnerWidth = Pad * 2 + Columns * SlotSize + (Columns - 1) * Gap
+    local InnerHeight = TopOffset + Rows * SlotSize + (Rows - 1) * Gap + Pad * 2
+
+    local Outer = New("Frame", {
+        Parent = Library.Holder,
+        AnchorPoint = Vector2.new(0.5, 1),
+        Position = Params.Position or UDim2.new(0.5, 0, 1, -140),
+        Size = UDim2.fromOffset(InnerWidth + 10, InnerHeight + 12),
+        BackgroundTransparency = 0,
+        BackgroundColor3 = Color3.fromRGB(28, 28, 28),
+        Visible = false,
+    })
+    Outline(Outer, "Border")
+    Draggable(Outer, Outer)
+
+    local Inner = New("Frame", {
+        Parent = Outer,
+        Position = UDim2.fromOffset(5, 6),
+        Size = UDim2.new(1, -10, 1, -12),
+        BackgroundTransparency = 0,
+        BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+    })
+    Outline(Inner)
+    Shade(Inner, -90)
+    Highlight(Inner, "Window")
+
+    local Title = New("TextLabel", {
+        Parent = Outer,
+        Position = UDim2.fromOffset(13, 7),
+        Size = UDim2.new(1, -26, 0, 20),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = Params.Name or "Inventory",
+    })
+    MainGradient(Title)
+
+    for Index = 1, MaxSlots do
+        local Column = (Index - 1) % Columns
+        local Row = (Index - 1) // Columns
+
+        local Frame = New("Frame", {
+            Parent = Inner,
+            Position = UDim2.fromOffset(
+                Pad + Column * (SlotSize + Gap),
+                TopOffset + Row * (SlotSize + Gap)
+            ),
+            Size = UDim2.fromOffset(SlotSize, SlotSize),
+            BackgroundTransparency = 0,
+        })
+        Themed(function() Frame.BackgroundColor3 = Theme.Background end)
+        Outline(Frame)
+
+        local Image = New("ImageLabel", {
+            Parent = Frame,
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 6),
+            Size = UDim2.fromOffset(55, 55),
+            BackgroundTransparency = 1,
+            ScaleType = Enum.ScaleType.Fit,
+            Image = "",
+        })
+
+        local Name = New("TextLabel", {
+            Parent = Frame,
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 3, 1, -3),
+            Size = UDim2.new(1, -6, 0, 12),
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            Text = "",
+        })
+        Themed(function() Name.TextColor3 = Theme["Dim Text"] end)
+
+        local Number = New("TextLabel", {
+            Parent = Frame,
+            Position = UDim2.fromOffset(3, 2),
+            Size = UDim2.fromOffset(14, 12),
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = tostring(Index % 10),
+        })
+        Themed(function() Number.TextColor3 = Theme["Option Text"] end)
+
+        Viewer.Slots[Index] = { Frame = Frame, Image = Image, Name = Name, Number = Number }
+    end
+
+    Viewer.Items = {
+        InventoryViewer = Wrap(Outer),
+        Inner = Wrap(Inner),
+        Title = Wrap(Title),
+        Slots = { },
+    }
+
+    for Index, Slot in Viewer.Slots do
+        Viewer.Items.Slots[Index] = {
+            Frame = Wrap(Slot.Frame),
+            Image = Wrap(Slot.Image),
+            Name = Wrap(Slot.Name),
+        }
+    end
+
+    -- Viewer:SetImage(slot, image)   image = "rbxassetid://123" | 123 | "" / nil to clear
+    function Viewer:SetImage(Index, Image)
+        local Slot = Viewer.Slots[Index]
+        if not Slot then
+            return
+        end
+
+        if type(Image) == "number" then
+            Image = "rbxassetid://" .. Image
+        end
+
+        Slot.Image.Image = Image and tostring(Image) or ""
+    end
+
+    -- Viewer:SetName(slot, name)   name = "" / nil to clear
+    function Viewer:SetName(Index, Text)
+        local Slot = Viewer.Slots[Index]
+        if not Slot then
+            return
+        end
+
+        Slot.Name.Text = Text and tostring(Text) or ""
+    end
+
+    -- Viewer:SetText(text)   changes the window title
+    function Viewer:SetText(Text)
+        Title.Text = tostring(Text)
+    end
+
+    -- Viewer:SetVisibility(bool)
+    function Viewer:SetVisibility(Bool)
+        Outer.Visible = Bool and true or false
+    end
+
+    -- Viewer:Clear(slot?)   clears one slot, or all slots if no index is given
+    function Viewer:Clear(Index)
+        if Index then
+            Viewer:SetImage(Index, nil)
+            Viewer:SetName(Index, nil)
+            return
+        end
+
+        for Slot = 1, MaxSlots do
+            Viewer:SetImage(Slot, nil)
+            Viewer:SetName(Slot, nil)
+        end
+    end
+
+    return setmetatable(Viewer, Library)
+end
+--#endregion
+
 --#region Audioshit
 Library.AudioPlayer = function(Self, Params)
     Params = Params or { }
