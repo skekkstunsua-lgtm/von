@@ -134,6 +134,7 @@ local EspLib = {
 
     },
 
+    GetWeapon = nil,
     Cache = { },
     Objects = { },
     Connections = { },
@@ -422,8 +423,7 @@ function EspLib.Chams:Update()
 end;
 
 
-local function SetHealth(Esp)
-    local Humanoid = Esp.Humanoid
+local function SetHealth(Esp, Humanoid)
     local Health = math.max(Humanoid.Health, 0)
 
     Esp.Target = math.clamp(Health / math.max(Humanoid.MaxHealth, 1), 0, 1)
@@ -431,8 +431,23 @@ local function SetHealth(Esp)
 end
 
 local function SetWeapon(Esp)
-    local Tool = Esp.Character:FindFirstChildOfClass("Tool")
-    Esp.Labels.Weapon.Text = Tool and Tool.Name or "none"
+    local Character = Esp.Character
+
+    if not Character then
+        return
+    end
+
+    local Name = EspLib.GetWeapon and EspLib.GetWeapon(Character)
+
+    if not Name then
+        local Tool = Character:FindFirstChildOfClass("Tool")
+        Name = Tool and Tool.Name or "none"
+    end
+
+    if Esp.Weapon ~= Name then
+        Esp.Weapon = Name
+        Esp.Labels.Weapon.Text = Name
+    end
 end
 
 local function Hide(Esp)
@@ -462,7 +477,9 @@ end
 
 local function BindHumanoid(Esp, Humanoid)
     local function Changed()
-        SetHealth(Esp)
+        if Esp.Humanoid == Humanoid then
+            SetHealth(Esp, Humanoid)
+        end
     end
 
     Esp.Humanoid = Humanoid
@@ -470,7 +487,7 @@ local function BindHumanoid(Esp, Humanoid)
     table.insert(Esp.Links, Humanoid.HealthChanged:Connect(Changed))
     table.insert(Esp.Links, Humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(Changed))
 
-    SetHealth(Esp)
+    SetHealth(Esp, Humanoid)
     Esp.Shown = Esp.Target
     PaintHealth(Esp)
 end
@@ -615,6 +632,8 @@ local function Create(Name)
         Width = -1,
         Height = -1,
         Meters = -1,
+        Weapon = "none",
+        NextWeapon = 0,
 
         Links = { },
         PlayerLinks = { },
@@ -809,6 +828,8 @@ local function Step(Delta)
     local TeamCheck = Settings.TeamCheck
     local Team = LocalPlayer.Team
     local ShowDistance = Settings.Texts.Distance.Enabled
+    local ShowWeapon = Settings.Texts.Weapon.Enabled
+    local Clock = os.clock()
     local Smooth = math.min(Delta * 12, 1)
 
     for _, Esp in Cache do
@@ -879,6 +900,11 @@ local function Step(Delta)
 
             Esp.Shown = Shown
             PaintHealth(Esp)
+        end
+
+        if EspLib.GetWeapon and ShowWeapon and Clock >= Esp.NextWeapon then
+            Esp.NextWeapon = Clock + 0.25
+            SetWeapon(Esp)
         end
 
         Show(Esp)
