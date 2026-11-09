@@ -86,15 +86,63 @@ local EspLib = {
             SizePadding = 0.01;
         };
 
+        Ai = {
+            Enabled = false,
+            Distance = 1000,
+        },
+
+        Objects = {
+            Items = {
+                Enabled = false,
+                Color = White,
+                Distance = 150,
+                Contents = true,
+            },
+
+            Containers = {
+                Enabled = false,
+                Color = Lilac,
+                Distance = 150,
+                Contents = true,
+            },
+
+            Corpses = {
+                Enabled = false,
+                Color = Color3.fromRGB(255, 160, 90),
+                Distance = 300,
+                Contents = true,
+            },
+
+            Extracts = {
+                Enabled = false,
+                Color = Color3.fromRGB(90, 255, 120),
+                Distance = 5000,
+            },
+
+            Landmines = {
+                Enabled = false,
+                Color = Color3.fromRGB(255, 70, 70),
+                Distance = 200,
+            },
+
+            Vehicles = {
+                Enabled = false,
+                Color = Color3.fromRGB(255, 220, 80),
+                Distance = 5000,
+            },
+        },
+
     },
 
     Cache = { },
+    Objects = { },
     Connections = { },
     Chams = {
         Players = {};
     }
 }
 local Cache = EspLib.Cache
+local Objects = EspLib.Objects
 local Shadow = { }
 local Styles = { }
 local Levels = { }
@@ -248,6 +296,13 @@ local function Style(Esp)
         Label.Visible = Data.Enabled
         Label.TextColor3 = Data.Color
     end
+end
+
+local function StyleObject(Entry)
+    local Data = EspLib.Table.Objects[Entry.Category]
+
+    Entry.Labels.Name.TextColor3 = Data.Color
+    Entry.Labels.Contents.Visible = Data.Contents == true
 end
 
 local function Level(Ratio)
@@ -455,11 +510,7 @@ local function Bind(Esp, Character)
     SetWeapon(Esp)
 end
 
-function EspLib:Add(Player)
-    if Player == LocalPlayer or Cache[Player] then
-        return
-    end
-
+local function Create(Name)
     local Holder = New("Frame", {
         Parent = Gui,
         BackgroundTransparency = 1,
@@ -509,7 +560,7 @@ function EspLib:Add(Player)
     })
 
     local Esp = {
-        Player = Player,
+        Player = nil,
         Holder = Holder,
         Fill = Fill,
         Box = Box,
@@ -525,7 +576,7 @@ function EspLib:Add(Player)
                 AnchorPoint = Vector2.new(0.5, 1),
                 Position = UDim2.new(0.5, 0, 0, -3),
                 Size = UDim2.fromOffset(0, 10),
-                Text = Player.Name,
+                Text = Name,
             }),
 
             Health = Text({
@@ -566,7 +617,20 @@ function EspLib:Add(Player)
         Meters = -1,
 
         Links = { },
+        PlayerLinks = { },
     }
+
+    Style(Esp)
+    return Esp
+end
+
+function EspLib:Add(Player)
+    if Player == LocalPlayer or Cache[Player] then
+        return
+    end
+
+    local Esp = Create(Player.Name)
+    Esp.Player = Player
 
     Esp.PlayerLinks = {
         Player.CharacterAdded:Connect(function(Character)
@@ -580,13 +644,130 @@ function EspLib:Add(Player)
     }
 
     Cache[Player] = Esp
-    Style(Esp)
 
     if Player.Character then
         Bind(Esp, Player.Character)
     end
 
     return Esp
+end
+
+function EspLib:AddModel(Model)
+    if Cache[Model] then
+        return Cache[Model]
+    end
+
+    local Esp = Create(Model.Name)
+
+    Esp.PlayerLinks = {
+        Model.AncestryChanged:Connect(function()
+            if not Model:IsDescendantOf(workspace) then
+                EspLib:Remove(Model)
+            end
+        end),
+    }
+
+    Cache[Model] = Esp
+    Bind(Esp, Model)
+
+    return Esp
+end
+
+local function Resolve(Object)
+    if Object:IsA("Model") then
+        return Object.PrimaryPart or Object:FindFirstChildWhichIsA("BasePart", true)
+    end
+
+    if Object:IsA("BasePart") or Object:IsA("Attachment") then
+        return Object
+    end
+
+    return Object:FindFirstChildWhichIsA("BasePart", true)
+end
+
+function EspLib:AddObject(Object, Category, Name)
+    if Objects[Object] then
+        return Objects[Object]
+    end
+
+    local Holder = New("Frame", {
+        Parent = Gui,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromOffset(0, 0),
+        Visible = false,
+    })
+
+    local Entry = {
+        Object = Object,
+        Category = Category,
+        Holder = Holder,
+        Part = Resolve(Object),
+
+        Labels = {
+            Name = Text({
+                Parent = Holder,
+                AnchorPoint = Vector2.new(0.5, 0),
+                Size = UDim2.fromOffset(0, 10),
+                Text = Name or Object.Name,
+            }),
+
+            Distance = Text({
+                Parent = Holder,
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.fromOffset(0, 11),
+                Size = UDim2.fromOffset(0, 10),
+                Text = "0m",
+            }),
+
+            Contents = Text({
+                Parent = Holder,
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.fromOffset(0, 22),
+                Size = UDim2.fromOffset(0, 10),
+                TextYAlignment = Enum.TextYAlignment.Top,
+                Text = "",
+            }),
+        },
+
+        Info = "",
+        Contents = "",
+        ShownInfo = nil,
+        ShownContents = "",
+        Visible = false,
+        X = -1,
+        Y = -1,
+        Meters = -1,
+
+        Links = { },
+    }
+
+    table.insert(Entry.Links, Object.AncestryChanged:Connect(function()
+        if not Object:IsDescendantOf(workspace) then
+            EspLib:RemoveObject(Object)
+        end
+    end))
+
+    Objects[Object] = Entry
+    StyleObject(Entry)
+
+    return Entry
+end
+
+function EspLib:RemoveObject(Object)
+    local Entry = Objects[Object]
+
+    if not Entry then
+        return
+    end
+
+    Objects[Object] = nil
+
+    for _, Link in Entry.Links do
+        Link:Disconnect()
+    end
+
+    table.clear(Entry.Links)
+    Entry.Holder:Destroy()
 end
 
 function EspLib:Remove(Player)
@@ -615,30 +796,31 @@ local function Step(Delta)
         for _, Esp in Cache do
             Style(Esp)
         end
-    end
 
-    if not Settings.Enabled then
-        for _, Esp in Cache do
-            Hide(Esp)
+        for _, Entry in Objects do
+            StyleObject(Entry)
         end
-
-        return
     end
 
     local Camera = workspace.CurrentCamera
     local Origin = Camera.CFrame.Position
     local Viewport = Camera.ViewportSize
     local Factor = Viewport.Y / (2 * math.tan(math.rad(Camera.FieldOfView) / 2)) * BoxHeight
-    local Range = Settings.Distance
     local TeamCheck = Settings.TeamCheck
     local Team = LocalPlayer.Team
     local ShowDistance = Settings.Texts.Distance.Enabled
     local Smooth = math.min(Delta * 12, 1)
 
-    for Player, Esp in Cache do
+    for _, Esp in Cache do
+        local Player = Esp.Player
         local Root = Esp.Root
+        local Enabled, Range = Settings.Enabled, Settings.Distance
 
-        if not Root or not Esp.Humanoid or Esp.Target <= 0 or (TeamCheck and Team and Player.Team == Team) then
+        if not Player then
+            Enabled, Range = Settings.Ai.Enabled, Settings.Ai.Distance
+        end
+
+        if not Enabled or not Root or not Esp.Humanoid or Esp.Target <= 0 or (TeamCheck and Team and Player and Player.Team == Team) then
             Hide(Esp)
             continue
         end
@@ -701,6 +883,65 @@ local function Step(Delta)
 
         Show(Esp)
     end
+
+    for Object, Entry in Objects do
+        local Data = Settings.Objects[Entry.Category]
+
+        if not Data.Enabled then
+            Hide(Entry)
+            continue
+        end
+
+        local Part = Entry.Part
+
+        if not Part or not Part.Parent then
+            Part = Resolve(Object)
+            Entry.Part = Part
+
+            if not Part then
+                Hide(Entry)
+                continue
+            end
+        end
+
+        local Position = Part:IsA("Attachment") and Part.WorldPosition or Part.Position
+        local Distance = (Position - Origin).Magnitude
+
+        if Distance > Data.Distance then
+            Hide(Entry)
+            continue
+        end
+
+        local Screen = Camera:WorldToViewportPoint(Position)
+
+        if Screen.Z <= 0 or Screen.X < 0 or Screen.Y < 0 or Screen.X > Viewport.X or Screen.Y > Viewport.Y then
+            Hide(Entry)
+            continue
+        end
+
+        local X = math.floor(Screen.X + 0.5)
+        local Y = math.floor(Screen.Y + 0.5)
+
+        if X ~= Entry.X or Y ~= Entry.Y then
+            Entry.X, Entry.Y = X, Y
+            Entry.Holder.Position = UDim2.fromOffset(X, Y)
+        end
+
+        local Meters = math.floor(Distance + 0.5)
+
+        if Meters ~= Entry.Meters or Entry.Info ~= Entry.ShownInfo then
+            Entry.Meters = Meters
+            Entry.ShownInfo = Entry.Info
+            Entry.Labels.Distance.Text = Entry.Info == "" and Meters .. "m" or Entry.Info .. " | " .. Meters .. "m"
+        end
+
+        if Entry.Contents ~= Entry.ShownContents then
+            Entry.ShownContents = Entry.Contents
+            Entry.Labels.Contents.Text = Entry.Contents
+        end
+
+        Show(Entry)
+    end
 end
 
 function EspLib:Unload()
@@ -712,6 +953,10 @@ function EspLib:Unload()
 
     for Player in Cache do
         EspLib:Remove(Player)
+    end
+
+    for Object in Objects do
+        EspLib:RemoveObject(Object)
     end
 
     Gui:Destroy()
