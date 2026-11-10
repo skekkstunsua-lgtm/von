@@ -10,6 +10,7 @@ end
 
 
 
+
 --#region bypass
 
     local Detect = filtergc("function", {Name = "detectSuspiciousObjects"}, true)
@@ -101,6 +102,7 @@ end
         RealProjectileInflict = ReplicatedStorage.Remotes.ProjectileInflict;
         UpdateTilt = ReplicatedStorage.Remotes.UpdateTilt;
         Reload = ReplicatedStorage.Remotes.Reload;
+        SpawnCharacter = ReplicatedStorage.Remotes.SpawnCharacter;
     };
 
     local CreateTracer;
@@ -264,7 +266,8 @@ do
     local PitchMode = "down"
     local YawMode = "backwards"
     local JitterFlip = false
-
+    local NoRespawnTimer = false;
+    
     do -- combat
         local SilentAimEnabled = false;
         local NoSpreadEnabled = false;
@@ -291,8 +294,7 @@ do
 
 
         local DoubleTapEnabled = false   
-        local DoubleTapFiring = false
-        local KillauraFanOut = false     
+        local DoubleTapFiring = false    
 
         local ForceAuto = false;
         local Resolver = false 
@@ -758,18 +760,6 @@ do
                     Remotes.MeleeInflict:FireServer(Head.Parent, Head, "NormalAttack")
                     Modules.VFX.Impact(Result.Instance, Result.Position, Result.Normal, Result.Material, (Head.Position - Origin).Unit, "Melee", true)
                     Remotes.MeleeReplicate:FireServer(Result.Instance, Result.Position, Result.Normal, Result.Material)
-
-              
-                    if KillauraFanOut then
-                        for _, plr in Players:GetPlayers() do
-                            local Other = plr ~= LocalPlayer and plr.Character
-                            local OtherHead = Other and Other ~= Head.Parent and Other:FindFirstChild("Head")
-                            local OtherHumanoid = OtherHead and Other:FindFirstChildOfClass("Humanoid")
-                            if OtherHumanoid and OtherHumanoid.Health > 0 and (OtherHead.Position - Origin).Magnitude <= Range then
-                                Remotes.MeleeInflict:FireServer(Other, OtherHead, "NormalAttack")
-                            end
-                        end
-                    end
                 end)
                 Track:Play(0.08)
             end)
@@ -1261,14 +1251,7 @@ do
                     KillauraEnabled = v;
                 end
             })
-            Sections.killaura:Toggle({
-                Name = 'killaura fan out';
-                Flag = 'killaurafanout';
-                Default = false;
-                Callback = function(v)
-                    KillauraFanOut = v;
-                end
-            })
+
             Sections.killaura:Slider({
                 Name = 'killaura range';
                 Flag = 'killaurarange';
@@ -1332,7 +1315,7 @@ do
         --[[local ApplyFakeLag = function()
             if identifyexecutor() ~= "Atomic" then 
                 setfflag("S2PhysicsSenderRate", FakeLagEnabled and tostring(FakeLagRate) or DefaultSendRate)
-            end
+            end 
         end]]
         local old; old = hookmetamethod(game, "__namecall", function(self, ...)
             local Args = {...}
@@ -1377,6 +1360,9 @@ do
                     if Args[1] == "AccuracyDeviation" and NoSpread then
                         return 0
                     end
+                    if Args[1] == "RespawnTime" and NoRespawnTimer then 
+                        return 0 
+                    end 
                 end 
                 if Method == "Raycast" then 
                     local tb = debug.traceback()
@@ -2242,6 +2228,8 @@ do
         --#endregion rewrite visuals
     end
 
+
+
     do -- world visuals 
 
 
@@ -2568,6 +2556,8 @@ do
         })
 
     end
+
+
 
     do-- visuals miscs
         local FovToggle = false;
@@ -2954,7 +2944,7 @@ do
 
             Sections.exploits:Toggle({
                 Name = 'no landmines';
-                FLag = 'nolandmines';
+                Flag = 'nolandmines';
                 Default = false;
                 Callback = function(v)
                     if not InLobby then 
@@ -2967,6 +2957,33 @@ do
                         end 
                     end 
                 end 
+            })
+
+            Sections.exploits:Toggle({
+                Name = 'no respawn timer';
+                Flag = 'norespawn';
+                Default = NoRespawnTimer;
+                Callback = function(v)
+                    NoRespawnTimer = v;
+                end 
+            })
+
+            local Side = "West"
+
+            Sections.exploits:Button({
+                Name = 'force spawn';
+                Callback = function()
+                    Remotes.SpawnCharacter:InvokeServer(Side)
+                end
+            })
+
+            Sections.exploits:Dropdown({
+                Name = 'spawn side';
+                Items = {"West", "East"};
+                Default = "West";
+                Callback = function(v) 
+                    Side = v;
+                end
             })
 
             Sections.movement:Toggle({
