@@ -10,7 +10,6 @@ end
 
 
 
-
 --#region bypass
 
     local Detect = filtergc("function", {Name = "detectSuspiciousObjects"}, true)
@@ -126,7 +125,7 @@ end
 
     --Loader:SetProgress(0.2, "loading libraries")
     
-    
+
     if identifyexecutor() ~= "Atomic" then 
         setfflag("AdornShadingAPI", "true")
     end 
@@ -188,7 +187,7 @@ end
             Side = 1;
         });
         target = Pages.MiscPage:Section({
-            Name = 'target';
+            Name = 'players';
             Side = 2;
         });
         worldesp = Pages.VisualsPage:Section({
@@ -847,7 +846,7 @@ do
                             Ctrl.MouseHeld = Ctrl.LeftMouseDown == true
                         end
                     end
-                    if AutoReloadEnabled then
+                    --[[if AutoReloadEnabled then
                         local Ctrl = GetController()
                         if Ctrl and Ctrl.weapon and not Ctrl.reloading and not Ctrl.cancellingReload and Ctrl.Bullets <= 0 then
                             local now = os.clock()
@@ -879,7 +878,7 @@ do
                                 end
                             end
                         end
-                    end
+                    end]]
                     task.wait(0)
                 end
             end)
@@ -1235,14 +1234,14 @@ do
                     ForceHitEnabled = v;
                 end 
             })
-            Sections.gunmods:Toggle({
-                Name = 'auto reload';
-                Flag = 'autoreload';
-                Default = false;
-                Callback = function(v)
-                    AutoReloadEnabled = v;
-                end
-            })
+            --Sections.gunmods:Toggle({
+            --    Name = 'auto reload';
+            --    Flag = 'autoreload';
+            --    Default = false;
+            --    Callback = function(v)
+            --        AutoReloadEnabled = v;
+            --    end
+            --})
             Sections.killaura:Toggle({
                 Name = 'killaura';
                 Flag = 'killaura';
@@ -1309,7 +1308,7 @@ do
 
 
     --#region namecall stuff
-        local DefaultSendRate = getfflag("S2PhysicsSenderRate")
+        --local DefaultSendRate = getfflag("S2PhysicsSenderRate")
         local FakeLagEnabled, FakeLagRate = false, 2
 
         --[[local ApplyFakeLag = function()
@@ -1317,8 +1316,12 @@ do
                 setfflag("S2PhysicsSenderRate", FakeLagEnabled and tostring(FakeLagRate) or DefaultSendRate)
             end 
         end]]
-        local old; old = hookmetamethod(game, "__namecall", function(self, ...)
+
+        
+
+        local old; old = hookfunction(getrawmetatable(game).__namecall, function(self, ...)
             local Args = {...}
+
             if not checkcaller() then
                 
                 local Method = getnamecallmethod()
@@ -1401,6 +1404,7 @@ do
                     error("The current thread cannot call 'SaveScriptProfilingData' (lacking capability RobloxScript)", 0)
                 end
 
+                setnamecallmethod(Method)
             end
             return old(self, unpack(Args))
         end)
@@ -2564,6 +2568,8 @@ do
         local FovSize = 90;
         local ThirdPersonToggle = false;
         local ThirdPersonDistance = 15;
+        local oldmin = LocalPlayer.CameraMinZoomDistance
+        local oldmax = LocalPlayer.CameraMaxZoomDistance
 
         RunService.RenderStepped:Connect(function()
 
@@ -2582,7 +2588,7 @@ do
                         end
                     end
                 end
-            end
+            end 
         end)
         Camera:GetPropertyChangedSignal("FieldOfView"):Connect(function() 
             if FovToggle and Camera.FieldOfView ~= FovSize then 
@@ -2897,6 +2903,24 @@ do
                     Lighting.InventoryBlur.Enabled = not v
                 end 
             })
+            
+            local BackpackFrame = Players.LocalPlayer.PlayerGui.MainGui.MainFrame.BackpackFrame
+
+            Sections.exploits:Slider({
+                Name = 'inventory transparency';
+                Flag = 'invtrans';
+                Min = 0;
+                Max = 1;
+                Decimals = 0.01;
+                Default = 0.05;
+                Callback = function(v)
+                    for i, va in BackpackFrame:GetChildren() do 
+                        if va:IsA("Frame") then 
+                            va.BackgroundTransparency = v
+                        end 
+                    end 
+                end 
+            })
 
             Sections.exploits:Toggle({
                 Name = 'no water blur';
@@ -3124,68 +3148,161 @@ do
             })
         --#endregion
     end
-    local iscorn = true;
-    local drawing2 = Drawing.new("Line")
-    drawing2.Color = Color3.new(1,1,1);
-    drawing2.Thickness = 1;
-    local drawing3 = Drawing.new("Line")
-    drawing3.Color = Color3.new(1,1,1);
-    drawing3.Thickness = 1;
-    do -- target info
-        local targetHudEnabled = false;
-        local targetLineEnabled = false;
-        local traceFromGun = false;
-        local targetHud = Library:TargetHUD({
-            Name = "target info";
-        })
-        currentTargetPart = nil;
-        --targetupdateshit
-        RunService.Heartbeat:Connect(function()
-            task.spawn(function()
-                if not targetHudEnabled then targetHud:SetVisibility(false); return; end;
-                local target = RagebotTarget or GetTarget();
-                if not target then targetHud:SetVisibility(false); return; end;
-                if FovCircleEnabled then
-                    local deg = math.clamp(FovCircle.Radius or 90, 0.5, 179.5);
-                    local mouseLocation = UserInputService.GetMouseLocation(UserInputService)
-                    local screenPos, _ = Camera.WorldToViewportPoint(Camera, target.Position);
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mouseLocation).Magnitude
-                    local r = math.tan(math.rad(deg/2)) / math.tan(math.rad(Camera.FieldOfView / 2)) * (Camera.ViewportSize.Y / 2);
-                    if dist > r then targetHud:SetVisibility(false); return; end;
+
+    do -- CORNS UNORGANIZED SLOP FUCKING UP MY CODE AND SHIT
+        local iscorn = true;
+        local drawing2 = Drawing.new("Line")
+        drawing2.Color = Color3.new(1,1,1);
+        drawing2.Thickness = 1;
+        local drawing3 = Drawing.new("Line")
+        drawing3.Color = Color3.new(1,1,1);
+        drawing3.Thickness = 1;
+
+
+
+        do -- target info
+            local targetHudEnabled = false;
+            local targetLineEnabled = false;
+            local traceFromGun = false;
+            
+            
+            local ScanBanned = false;
+            local ScanVault = false;
+            local ScanPurchases = false;
+            local UseNotifications = false;
+            
+            
+            local targetHud = Library:TargetHUD({
+                Name = "target info";
+            })
+            
+            local old = print
+
+            local print = function(...)
+                if not UseNotifications then 
+                    return old(...)
+                end 
+
+                Library:Notification({
+                    Name = tostring(...);
+                    Time = 20;
+                })
+            end 
+
+            local old = warn
+
+            local warn = function(...)
+                if not UseNotifications then 
+                    return old(...)
+                end 
+
+                Library:Notification({
+                    Name = tostring(...);
+                    Time = 20;
+                })
+            end 
+
+            --#region gunscanner
+
+                local DoGunScan = function(...)
+
+
+                    for i, v in Entities:GetChildren() do 
+                        print(tostring(v).."'s inventory: ")
+                        
+                        for id, va in v.Inventory:GetChildren() do 
+                            warn(va)
+                        end 
+
+                        local VaultStorage = v.VaultStorage.Inventory:GetChildren()
+
+                        if #VaultStorage > 0 and ScanVault then 
+                            print(tostring(v).."'s Vault storage: ")
+                            for i, v in next, VaultStorage do 
+                                print(v)
+                            end 
+                        end 
+
+                        local Purchases = v.Status.Purchases.Passes:GetAttributes()
+
+                        if #Purchases > 0 and ScanPurchases then 
+                            print(tostring(v).."'s Purchases: ")
+                            for i, v in next, Purchases do 
+                                print(v)
+                            end 
+                        end
+
+                        local UserAntiCheat = v.Status.UAC:GetAttributes()
+
+                        if ScanBanned and UserAntiCheat["BeingBanned"] then 
+                            print(tostring(v).."'s anti cheat flags: ")
+                            warn(tostring(v).." is flagged by anti cheat "..UserAntiCheat["BeingBanned"])
+                        end
+                        
+                        
+
+                    end 
+
+
+                end 
+
+            --#endregion
+
+
+            
+            currentTargetPart = nil;
+            --targetupdateshit
+            RunService.Heartbeat:Connect(function()
+                task.spawn(function()
+                    if not targetHudEnabled then targetHud:SetVisibility(false); return; end;
+                    local target = RagebotTarget or GetTarget();
+                    if not target then targetHud:SetVisibility(false); return; end;
+                    if FovCircleEnabled then
+                        local deg = math.clamp(FovCircle.Radius or 90, 0.5, 179.5);
+                        local mouseLocation = UserInputService.GetMouseLocation(UserInputService)
+                        local screenPos, _ = Camera.WorldToViewportPoint(Camera, target.Position);
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - mouseLocation).Magnitude
+                        local r = math.tan(math.rad(deg/2)) / math.tan(math.rad(Camera.FieldOfView / 2)) * (Camera.ViewportSize.Y / 2);
+                        if dist > r then targetHud:SetVisibility(false); return; end;
+                        targetHud:SetVisibility(true);
+                    end;
+                    currentTargetPart = target;
+                    targetHud:SetTarget(target);
                     targetHud:SetVisibility(true);
-                end;
-                currentTargetPart = target;
-                targetHud:SetTarget(target);
-                targetHud:SetVisibility(true);
+                end)
             end)
-        end)
-        --shitty draw bs;
-        local targetLine = Drawing.new("Line");
-        targetLine.Visible = false;
-        RunService.RenderStepped:Connect(function()
-            task.spawn(function()
-                if not currentTargetPart or not targetLineEnabled then targetLine.Visible = false; return; end;
-                local screenPos, onScreen = Camera.WorldToViewportPoint(Camera, currentTargetPart.Position);
-                if not onScreen then targetLine.Visible = false; drawing2.Visible = false; drawing3.Visible = false; return; end;
-                local mouseLocation = UserInputService.GetMouseLocation(UserInputService)
-                if traceFromGun then
-                    local Viewmodel = Camera.FindFirstChild(Camera, "ViewModel");
-                    if Viewmodel then
-                        local Item = Viewmodel.FindFirstChild(Viewmodel, "Item");
-                        if Item then
-                            local Barrel = Item.FindFirstChild(Item, "Barrel");
-                            if Barrel then
-                                local barrelPos, onScreen = Camera.WorldToViewportPoint(Camera, Barrel.CFrame.Position);
-                                if onScreen then
-                                    if iscorn  then
-                                        drawing2.From = mouseLocation;
-                                        drawing2.To = Vector2.new(screenPos.X, screenPos.Y);
-                                        drawing3.From = mouseLocation
-                                        drawing3.To = Vector2.new(barrelPos.X, barrelPos.Y);
-                                        drawing2.Visible = true;
-                                        drawing3.Visible = true;
+            --shitty draw bs;
+            local targetLine = Drawing.new("Line");
+            targetLine.Visible = false;
+            RunService.RenderStepped:Connect(function()
+                task.spawn(function()
+                    if not currentTargetPart or not targetLineEnabled then targetLine.Visible = false; return; end;
+                    local screenPos, onScreen = Camera.WorldToViewportPoint(Camera, currentTargetPart.Position);
+                    if not onScreen then targetLine.Visible = false; drawing2.Visible = false; drawing3.Visible = false; return; end;
+                    local mouseLocation = UserInputService.GetMouseLocation(UserInputService)
+                    if traceFromGun then
+                        local Viewmodel = Camera.FindFirstChild(Camera, "ViewModel");
+                        if Viewmodel then
+                            local Item = Viewmodel.FindFirstChild(Viewmodel, "Item");
+                            if Item then
+                                local Barrel = Item.FindFirstChild(Item, "Barrel");
+                                if Barrel then
+                                    local barrelPos, onScreen = Camera.WorldToViewportPoint(Camera, Barrel.CFrame.Position);
+                                    if onScreen then
+                                        if iscorn  then
+                                            drawing2.From = mouseLocation;
+                                            drawing2.To = Vector2.new(screenPos.X, screenPos.Y);
+                                            drawing3.From = mouseLocation
+                                            drawing3.To = Vector2.new(barrelPos.X, barrelPos.Y);
+                                            drawing2.Visible = true;
+                                            drawing3.Visible = true;
+                                        end
+                                        targetLine.From = Vector2.new(barrelPos.X, barrelPos.Y);
+                                    else
+                                        drawing2.Visible = false;
+                                        drawing3.Visible = false;
+                                        targetLine.From = mouseLocation;
                                     end
-                                    targetLine.From = Vector2.new(barrelPos.X, barrelPos.Y);
                                 else
                                     drawing2.Visible = false;
                                     drawing3.Visible = false;
@@ -3201,149 +3318,188 @@ do
                             drawing3.Visible = false;
                             targetLine.From = mouseLocation;
                         end
+                        --[[local Barrel = Camera:FindFirstChild("ViewModel"):FindFirstChild("Item"):FindFirstChild("Barrel")
+                        if Barrel then
+                            local barrelPos, onScreen = Camera.WorldToViewportPoint(Camera, Barrel.CFrame.Position);
+                            if onScreen then
+                                targetLine.From = Vector2.new(barrelPos.X, barrelPos.Y);
+                            else
+                                targetLine.From = mouseLocation;
+                            end
+                        else
+                            targetLine.From = mouseLocation;
+                        end]]
                     else
                         drawing2.Visible = false;
                         drawing3.Visible = false;
                         targetLine.From = mouseLocation;
                     end
-                    --[[local Barrel = Camera:FindFirstChild("ViewModel"):FindFirstChild("Item"):FindFirstChild("Barrel")
-                    if Barrel then
-                        local barrelPos, onScreen = Camera.WorldToViewportPoint(Camera, Barrel.CFrame.Position);
-                        if onScreen then
-                            targetLine.From = Vector2.new(barrelPos.X, barrelPos.Y);
-                        else
-                            targetLine.From = mouseLocation;
-                        end
-                    else
-                        targetLine.From = mouseLocation;
-                    end]]
-                else
-                    drawing2.Visible = false;
-                    drawing3.Visible = false;
-                    targetLine.From = mouseLocation;
-                end
-                --targetLine.From = Vector2.new(screenPos.X, screenPos.Y);
-                --targetLine.To = mouseLocation;
-                targetLine.To = Vector2.new(screenPos.X, screenPos.Y);
-                if FovCircleEnabled then
-                    local deg = math.clamp(FovCircle.Radius or 90, 0.5, 179.5);
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mouseLocation).Magnitude
-                    local r = math.tan(math.rad(deg/2)) / math.tan(math.rad(Camera.FieldOfView / 2)) * (Camera.ViewportSize.Y / 2);
-                    if dist > r then targetLine.Visible = false; return; end;
+                    --targetLine.From = Vector2.new(screenPos.X, screenPos.Y);
+                    --targetLine.To = mouseLocation;
+                    targetLine.To = Vector2.new(screenPos.X, screenPos.Y);
+                    if FovCircleEnabled then
+                        local deg = math.clamp(FovCircle.Radius or 90, 0.5, 179.5);
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - mouseLocation).Magnitude
+                        local r = math.tan(math.rad(deg/2)) / math.tan(math.rad(Camera.FieldOfView / 2)) * (Camera.ViewportSize.Y / 2);
+                        if dist > r then targetLine.Visible = false; return; end;
+                        targetLine.Visible = true;
+                    end
                     targetLine.Visible = true;
-                end
-                targetLine.Visible = true;
+                end)
             end)
-        end)
-        Sections.target:Toggle({
-            Name = "target info";
-            Flag = "targetinfo";
-            Default = false;
-            Callback = function(v)
-                targetHudEnabled = v;
-            end;
-        })
-        Sections.target:Toggle({
-            Name = "target line";
-            Flag = "targetline";
-            Default = false;
-            Callback = function(v) targetLineEnabled = v; end;
-        }):Colorpicker({
-            Name = "target line color";
-            Flag = "targetlinecolor";
-            Default = Color3.fromRGB(255, 255, 255);
-            Callback = function(v) targetLine.Color = v; end;
-        })
-        Sections.target:Slider({
-            Name = "target line thickness";
-            Flag = "targetlinethickness";
-            Min = 1;
-            Max = 10;
-            Default = 1;
-            Decimals = 1;
-            Callback = function(v) targetLine.Thickness = v; end;
-        })
-        Sections.target:Toggle({
-            Name = "trace from gun";
-            Flag = "tracefromgun";
-            Default = false;
-            Callback = function(v) traceFromGun = v; end;
-        })
-    end
-    do -- song bs
-        local port = "8080";
-        local socket;
-        local connectspotifybutton;     
-        local spotifyPortinput;
-        local spotifyHUD
-        local AudioPToggle
-        local function formattime(ms)
-            local tsec = math.floor(ms/1000);
-            --local hrs = math.floor(tsec/3600);
-            local mins = math.floor((tsec % 3600) / 60);
-            local segs = tsec % 60
-            return string.format("%02d:%02d", mins, segs) 
+
+
+            Sections.target:Toggle({
+                Name = "target info";
+                Flag = "targetinfo";
+                Default = false;
+                Callback = function(v)
+                    targetHudEnabled = v;
+                end;
+            })
+            Sections.target:Toggle({
+                Name = "target line";
+                Flag = "targetline";
+                Default = false;
+                Callback = function(v) targetLineEnabled = v; end;
+            }):Colorpicker({
+                Name = "target line color";
+                Flag = "targetlinecolor";
+                Default = Color3.fromRGB(255, 255, 255);
+                Callback = function(v) targetLine.Color = v; end;
+            })
+            Sections.target:Slider({
+                Name = "target line thickness";
+                Flag = "targetlinethickness";
+                Min = 1;
+                Max = 10;
+                Default = 1;
+                Decimals = 1;
+                Callback = function(v) targetLine.Thickness = v; end;
+            })
+            Sections.target:Toggle({
+                Name = "trace from gun";
+                Flag = "tracefromgun";
+                Default = false;
+                Callback = function(v) traceFromGun = v; end;
+            })
+
+            Sections.target:Button({
+                Name = 'scan player inventories';
+                Callback = DoGunScan;
+            })
+
+            Sections.target:Toggle({
+                Name = 'scan vaults';
+                Flag = 'svault';
+                Default = ScanVault;
+                Callback = function(v)
+                    ScanVault = v;
+                end 
+            })
+
+            Sections.target:Toggle({
+                Name = 'scan banned';
+                Flag = 'scanb';
+                Default = false;
+                Callback = function(v)
+                    ScanBanned = v;
+                end 
+            })
+
+            Sections.target:Toggle({
+                Name = 'scan purchases';
+                Flag = 'scanp';
+                Default = false;
+                Callback = function(v)
+                    ScanPurchases = v;
+                end 
+            })
+
+            Sections.target:Toggle({
+                Name = 'notify on scan (otherwise, use F9)';
+                Flag = 'notiyscan';
+                Default = false;
+                Callback = function(v)
+                    UseNotifications = v;
+                end 
+            })
         end
-        local function connectSpotify()
-            local url = "ws://127.0.0.1:" .. port .. "/ws"
-            local ok = xpcall(function()
-                socket = WebSocket.connect(url)
-            end, function(err)
-                Library:Notification({ Name = "spotify connect failed: " .. tostring(err), Time = 4 })
-            end)
-
-            if ok then
-                Library:Notification({ Name = "spotify connected", Time = 2 })
-                connectspotifybutton:SetVisibility(false)
-                spotifyPortinput:SetVisibility(false)
-                spotifyHUD = Library:AudioPlayer({Name = "playback"});
-
-                AudioPToggle = Sections.AudioP:Toggle({
-                    Name = "toggle spotify hud";
-                    Flag = "togglespotifyhud";
-                    Default = false;
-                    Callback = function(v)
-                        spotifyHUD:SetVisibility(v);
-                    end;
-                })
-                socket.OnMessage:Connect(function(msg)
-                    local data = HttpService:JSONDecode(msg)
-                    --[[if data.playback then
-                        if data.playback["title"] then
-                            spotifyHUD:SetText(1, data.playback.title)
-                        end
-                        if data.playback["album"] then
-                            spotifyHUD:SetText(3, data.playback.album)
-                        end
-                        if data.playback["artist"] then
-                            spotifyHUD:SetText(2, data.playback.artist)
-                        end
-                        if data.playback["duration_ms"] and data.playback["position_ms"] then
-                            spotifyHUD:SetTime(data.playback.position_ms ,data.playback.duration_ms)
-                        end
-                    end]]
-                    spotifyHUD:Update(data)
+        do -- song bs
+            local port = "8080";
+            local socket;
+            local connectspotifybutton;     
+            local spotifyPortinput;
+            local spotifyHUD
+            local AudioPToggle
+            local function formattime(ms)
+                local tsec = math.floor(ms/1000);
+                --local hrs = math.floor(tsec/3600);
+                local mins = math.floor((tsec % 3600) / 60);
+                local segs = tsec % 60
+                return string.format("%02d:%02d", mins, segs) 
+            end
+            local function connectSpotify()
+                local url = "ws://127.0.0.1:" .. port .. "/ws"
+                local ok = xpcall(function()
+                    socket = WebSocket.connect(url)
+                end, function(err)
+                    Library:Notification({ Name = "spotify connect failed: " .. tostring(err), Time = 4 })
                 end)
 
+                if ok then
+                    Library:Notification({ Name = "spotify connected", Time = 2 })
+                    connectspotifybutton:SetVisibility(false)
+                    spotifyPortinput:SetVisibility(false)
+                    spotifyHUD = Library:AudioPlayer({Name = "playback"});
+
+                    AudioPToggle = Sections.AudioP:Toggle({
+                        Name = "toggle spotify hud";
+                        Flag = "togglespotifyhud";
+                        Default = false;
+                        Callback = function(v)
+                            spotifyHUD:SetVisibility(v);
+                        end;
+                    })
+                    socket.OnMessage:Connect(function(msg)
+                        local data = HttpService:JSONDecode(msg)
+                        --[[if data.playback then
+                            if data.playback["title"] then
+                                spotifyHUD:SetText(1, data.playback.title)
+                            end
+                            if data.playback["album"] then
+                                spotifyHUD:SetText(3, data.playback.album)
+                            end
+                            if data.playback["artist"] then
+                                spotifyHUD:SetText(2, data.playback.artist)
+                            end
+                            if data.playback["duration_ms"] and data.playback["position_ms"] then
+                                spotifyHUD:SetTime(data.playback.position_ms ,data.playback.duration_ms)
+                            end
+                        end]]
+                        spotifyHUD:Update(data)
+                    end)
+
+                end
             end
-        end
 
-        connectspotifybutton = Sections.AudioP:Button({
-            Name = "connect spotify";
-            Callback = function() connectSpotify(); end;
-        })
-        spotifyPortinput = Sections.AudioP:Textbox({
-            Name = "client port";
-            Flag = "spotifyclientport";
-            Default = "8080";
-            Callback = function(v)
-                port = v;
-            end;
-        });
+            connectspotifybutton = Sections.AudioP:Button({
+                Name = "connect spotify";
+                Callback = function() connectSpotify(); end;
+            })
+            spotifyPortinput = Sections.AudioP:Textbox({
+                Name = "client port";
+                Flag = "spotifyclientport";
+                Default = "8080";
+                Callback = function(v)
+                    port = v;
+                end;
+            });
 
 
-        
-    end;
+            
+        end;
+    end 
 end;
 --Loader:SetProgress(0.9, "finishing")
 Window:InitWindow()
