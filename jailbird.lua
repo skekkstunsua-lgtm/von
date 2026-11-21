@@ -34,14 +34,14 @@
     local Lighting = game:GetService("Lighting")
 
     local Modules = { -- Modules.
-        DynamicCrosshair = require(ReplicatedStorage.Components.DynamicCrosshair);
-        Config = require(game:GetService("ReplicatedStorage").Config);
+        --DynamicCrosshair = require(ReplicatedStorage.Components.DynamicCrosshair);
+        --Config = require(game:GetService("ReplicatedStorage").Config);
     };
 
     local Remotes = {
-        KillEvent = ReplicatedStorage.GameEvents.Damage;
-        DeviceUpdate = ReplicatedStorage.GameEvents.DeviceUpdate;
-        ReloadEvent = ReplicatedStorage.GameEvents.Reload;
+        KillEvent = ReplicatedStorage.Game.Remotes.Combat.Damage;
+        --DeviceUpdate = ReplicatedStorage.GameEvents.DeviceUpdate;
+        ReloadEvent = ReplicatedStorage.Game.Remotes.Combat.Reload;
     };
 
     local cheatinfo = {
@@ -489,21 +489,21 @@ do -- combat
 
             -- makes it look more visually pleasing i think
 
-            if isfunctionhooked(Modules.DynamicCrosshair.Update) then 
-                restorefunction(Modules.DynamicCrosshair.Update)
-            end 
-
-            local old; old = hookfunction(Modules.DynamicCrosshair.Update, function(p49, p50, ...) 
-                if NoSpreadEnabled then 
-                    p49.Spreading.Spread = 0.1
-                    p49.Spreading.MinSpread = 0
-                    p49.Spreading.MaxSpread = 0.1
-                else 
-                    p49.Spreading.MaxSpread = 150
-                end 
-
-                return old(p49, p50, ...)
-            end)
+            --if isfunctionhooked(Modules.DynamicCrosshair.Update) then 
+            --    restorefunction(Modules.DynamicCrosshair.Update)
+            --end 
+--
+            --local old; old = hookfunction(Modules.DynamicCrosshair.Update, function(p49, p50, ...) 
+            --    if NoSpreadEnabled then 
+            --        p49.Spreading.Spread = 0.1
+            --        p49.Spreading.MinSpread = 0
+            --        p49.Spreading.MaxSpread = 0.1
+            --    else 
+            --        p49.Spreading.MaxSpread = 150
+            --    end 
+--
+            --    return old(p49, p50, ...)
+            --end)
 
         --#endregion
 
@@ -1188,9 +1188,9 @@ Players:GetPlayerFromCharacter(t.FinalPart.Parent),
             end
         end
 
-        if DeviceSpoofEnabled and rawequal(self, Remotes.DeviceUpdate) and method == "FireServer" then
-            return Device
-        end
+        --if DeviceSpoofEnabled and rawequal(self, Remotes.DeviceUpdate) and method == "FireServer" then
+        --    return Device
+        --end
 
         return mtHook(self, ...)
     end))
@@ -1200,7 +1200,7 @@ Players:GetPlayerFromCharacter(t.FinalPart.Parent),
 
 
 do -- misc
-    Remotes.DeviceUpdate:FireServer(Device);
+    --Remotes.DeviceUpdate:FireServer(Device);
     
     local HitsoundEnabled = false
     local SelectedHitsound = "Neverlose"
@@ -1269,8 +1269,9 @@ do -- misc
         local hitsoundobj = Instance.new("Sound")
         hitsoundobj.Parent = workspace
         hitsoundobj.Volume = HitsoundVolume
+        local AddSound = filtergc("function", {Name = "AddSound"}, true)
 
-        local old; old = hookfunction(Modules.Config.AddSound, function(name, ...)
+        local old; old = hookfunction(AddSound, function(name, ...)
             if name == "HitMarker" and HitsoundEnabled then
                 hitsoundobj.SoundId = sounds[SelectedHitsound]
                 hitsoundobj.Volume = HitsoundVolume
@@ -1369,25 +1370,25 @@ do -- misc
 
     --#region exploits toggles
 
-        Sections.exploits:Toggle({
-            Name = 'device spoofer';
-            Flag = 'devicespoof';
-            Default = false;
-            Callback = function(v)
-                DeviceSpoofEnabled = v;
-                Remotes.DeviceUpdate:FireServer(Device);
-            end
-        })
-
-        Sections.exploits:Dropdown({
-            Name = 'device';
-            Items = {"Mobile"; "Computer"; "Console"};
-            Default = "Computer";
-            Callback = function(v)
-                Device = v;
-                Remotes.DeviceUpdate:FireServer(v)
-            end;
-        })
+        --Sections.exploits:Toggle({
+        --    Name = 'device spoofer';
+        --    Flag = 'devicespoof';
+        --    Default = false;
+        --    Callback = function(v)
+        --        DeviceSpoofEnabled = v;
+        --        Remotes.DeviceUpdate:FireServer(Device);
+        --    end
+        --})
+--
+        --Sections.exploits:Dropdown({
+        --    Name = 'device';
+        --    Items = {"Mobile"; "Computer"; "Console"};
+        --    Default = "Computer";
+        --    Callback = function(v)
+        --        Device = v;
+        --        Remotes.DeviceUpdate:FireServer(v)
+        --    end;
+        --})
 
     --#endregion
 
