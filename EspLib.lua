@@ -386,40 +386,46 @@ end
 
 function EspLib.Chams:Update()
     local Settings = EspLib["Table"]["bha"]
-    for name, list in EspLib.Chams.Players do
-        --[[for _, Inst in plr do
-            local part = Inst.Parent;
-            if not part then
-                --table.remove()
-            if Inst:IsA("BoxHandleAdornment") and Settings.Enabled then
-                Inst.Color3 = Settings.Color;
-                Inst.Shading = Settings.Shading;
-                Inst.AlwaysOnTop = Settings.AlwaysOnTop;
-                Inst.Transparency = Settings.Transparency;
-                Inst.Size = Inst.Parent.Size + (Vector3.new(1, 1, 1)* Settings.SizePadding)
-                Inst.Visible = true;
-            elseif Inst:IsA("BoxHandleAdornment") and not Settings.Enabled then
-                Inst.Visible = false;
-            end;
-        end;]]
-        for i = #list, 1, -1 do
-            local inst = list[i];
-            local part = inst.Parent
-            -- my name is corn and im a bitch 
-            if not part then
-                table.remove(list, i)
-            elseif inst:IsA("BoxHandleAdornment") and Settings.Enabled then
-                inst.Color3 = Settings.Color;
-                inst.Shading = Settings.Shading;
-                inst.AlwaysOnTop = Settings.AlwaysOnTop;
-                inst.Transparency = Settings.Transparency;
-                inst.Size = inst.Parent.Size + (Vector3.new(1, 1, 1)* Settings.SizePadding)
-                inst.Visible = true;
-            else
-                inst.Visible = false;
+    local Padding = Vector3.new(1, 1, 1) * Settings.SizePadding
+
+    for _, List in EspLib.Chams.Players do
+        for i = #List, 1, -1 do
+            local Inst = List[i]
+            local Part = Inst.Parent
+
+            if not Part then
+                table.remove(List, i)
+            elseif Inst:IsA("BoxHandleAdornment") and Settings.Enabled then
+                local Size = Part.Size + Padding
+
+                if Inst.Color3 ~= Settings.Color then
+                    Inst.Color3 = Settings.Color
+                end
+
+                if Inst.Shading ~= Settings.Shading then
+                    Inst.Shading = Settings.Shading
+                end
+
+                if Inst.AlwaysOnTop ~= Settings.AlwaysOnTop then
+                    Inst.AlwaysOnTop = Settings.AlwaysOnTop
+                end
+
+                if Inst.Transparency ~= Settings.Transparency then
+                    Inst.Transparency = Settings.Transparency
+                end
+
+                if Inst.Size ~= Size then
+                    Inst.Size = Size
+                end
+
+                if not Inst.Visible then
+                    Inst.Visible = true
+                end
+            elseif Inst.Visible then
+                Inst.Visible = false
             end
         end
-    end;
+    end
 end;
 
 
@@ -829,16 +835,20 @@ local function Step(Delta)
     local Team = LocalPlayer.Team
     local ShowDistance = Settings.Texts.Distance.Enabled
     local ShowWeapon = Settings.Texts.Weapon.Enabled
+    local PlayerRange = Settings.Distance
+    local PlayerRangeSquared = PlayerRange * PlayerRange
+    local AiRange = Settings.Ai.Distance
+    local AiRangeSquared = AiRange * AiRange
     local Clock = os.clock()
     local Smooth = math.min(Delta * 12, 1)
 
     for _, Esp in Cache do
         local Player = Esp.Player
         local Root = Esp.Root
-        local Enabled, Range = Settings.Enabled, Settings.Distance
+        local Enabled, Range, RangeSquared = Settings.Enabled, PlayerRange, PlayerRangeSquared
 
         if not Player then
-            Enabled, Range = Settings.Ai.Enabled, Settings.Ai.Distance
+            Enabled, Range, RangeSquared = Settings.Ai.Enabled, AiRange, AiRangeSquared
         end
 
         if not Enabled or not Root or not Esp.Humanoid or Esp.Target <= 0 or (TeamCheck and Team and Player and Player.Team == Team) then
@@ -847,9 +857,10 @@ local function Step(Delta)
         end
 
         local Position = Root.Position + BoxOffset
-        local Distance = (Position - Origin).Magnitude
+        local Offset = Position - Origin
+        local DistanceSquared = Offset:Dot(Offset)
 
-        if Distance > Range then
+        if Range < 0 or DistanceSquared > RangeSquared then
             Hide(Esp)
             continue
         end
@@ -883,7 +894,7 @@ local function Step(Delta)
         end
 
         if ShowDistance then
-            local Meters = math.floor(Distance + 0.5)
+            local Meters = math.floor(math.sqrt(DistanceSquared) + 0.5)
 
             if Meters ~= Esp.Meters then
                 Esp.Meters = Meters
@@ -931,9 +942,10 @@ local function Step(Delta)
         end
 
         local Position = Part:IsA("Attachment") and Part.WorldPosition or Part.Position
-        local Distance = (Position - Origin).Magnitude
+        local Offset = Position - Origin
+        local DistanceSquared = Offset:Dot(Offset)
 
-        if Distance > Data.Distance then
+        if Data.Distance < 0 or DistanceSquared > Data.Distance * Data.Distance then
             Hide(Entry)
             continue
         end
@@ -953,6 +965,7 @@ local function Step(Delta)
             Entry.Holder.Position = UDim2.fromOffset(X, Y)
         end
 
+        local Distance = math.sqrt(DistanceSquared)
         local Meters = math.floor(Distance + 0.5)
 
         if Meters ~= Entry.Meters or Entry.Info ~= Entry.ShownInfo then
