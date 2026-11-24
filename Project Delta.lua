@@ -1414,174 +1414,194 @@ do
 
 
     --Loader:SetProgress(0.5, "loading esp")
-    do -- esp
+        do -- player esp
+            Sections.Esp:Toggle({
+                Name = 'player esp';
+                Flag = 'espenabled';
+                Default = true;
+                Callback = function(v)
+                    EspLib['Table']['Enabled'] = v
+                    EspLib:Refresh()
+                end
+            })
 
-        
-        Sections.Esp:Toggle({
-            Name = 'player esp';
-            Flag = 'espenabled';
-            Default = true;
-            Callback = function(v)
-                EspLib['Table']['Enabled'] = v
+            Sections.Esp:Toggle({
+                Name = 'team check';
+                Flag = 'tc';
+                Default = false;
+                Callback = function(v)
+                    EspLib['Table']['TeamCheck'] = v;
+                    EspLib:Refresh()
+                end
+            })
+
+            Sections.Esp:Toggle({
+                Name = 'box enabled';
+                Flag = 'boxenable';
+                Default = true;
+                Callback = function(v)
+                    EspLib['Table']['Boxes']['Enabled'] = v
+                    EspLib:Refresh()
+                end
+            })
+
+            Sections.Esp:Toggle({
+                Name = 'text stroke';
+                Flag = 'textstroke';
+                Default = false;
+                Callback = function(v)
+                    EspLib['Table']['TextStroke'] = v
+                    EspLib:Refresh()
+                end
+            })
+
+            for i, v in EspLib['Table']['Boxes'] do
+                if type(v) ~= 'table' then
+                    continue
+                end
+                if rawget(v, 'Enabled') then
+                    Sections.Esp:Toggle({
+                        Name = i;
+                        Flag = 'boxtoggle'..i;
+                        Default = v['Enabled'];
+                        Callback = function(dih)
+                            v['Enabled'] = dih
+                            EspLib:Refresh()
+                        end
+                    })
+                end
+
+                if v['Top'] then
+                    Sections.Esp:Label({Name = i})
+
+                    Sections.Esp:Label({Name = 'top'}):Colorpicker({
+                        Name = 'top color';
+                        Flag = 'boxtopcolor'..i;
+                        Default = v['Top'];
+                        Callback = function(dih)
+                            v['Top'] = dih
+                            EspLib:Refresh()
+                        end;
+                    })
+                end
+
+                if v['Bot'] then
+                    Sections.Esp:Label({Name = i})
+
+                    Sections.Esp:Label({Name = 'bottom'}):Colorpicker({
+                        Name = 'bottom color';
+                        Flag = 'boxbotcolor'..i;
+                        Default = v['Bot'];
+                        Callback = function(dih)
+                            v['Bot'] = dih
+                            EspLib:Refresh()
+                        end;
+                    })
+                end
             end
-        })
-        
-        Sections.Esp:Toggle({
-            Name = 'team check';
-            Flag = 'tc';
-            Default = false;
-            Callback = function(v)
-                EspLib['Table']['TeamCheck'] = v;
-            end 
-        })
 
-        Sections.Esp:Toggle({
-            Name = 'box enabled';
-            Flag = 'boxenable';
-            Default = true;
-            Callback = function(v)
-                EspLib['Table']['Boxes']['Enabled'] = v
+            for i, v in EspLib['Table']['Bars'] do
+                if type(v) ~= 'table' then
+                    continue
+                end
+                if rawget(v, 'Enabled') then
+                    Sections.Esp:Toggle({
+                        Name = i;
+                        Flag = 'bartoggle'..i;
+                        Default = v['Enabled'];
+                        Callback = function(dih)
+                            v['Enabled'] = dih
+                            EspLib:Refresh()
+                        end
+                    })
+                end
+
+                if v['Top'] then
+                    Sections.Esp:Label({Name = i})
+
+                    Sections.Esp:Label({Name = 'top'}):Colorpicker({
+                        Name = 'top color';
+                        Flag = 'bartopcolor'..i;
+                        Default = v['Top'];
+                        Callback = function(dih)
+                            v['Top'] = dih
+                            EspLib:Refresh()
+                        end;
+                    })
+                end
+
+                if v['Bot'] then
+                    Sections.Esp:Label({Name = i})
+
+                    Sections.Esp:Label({Name = 'bottom'}):Colorpicker({
+                        Name = 'bottom color';
+                        Flag = 'barbotcolor'..i;
+                        Default = v['Bot'];
+                        Callback = function(dih)
+                            v['Bot'] = dih
+                            EspLib:Refresh()
+                        end;
+                    })
+                end
+
+                if v['Mid'] then
+                    Sections.Esp:Label({Name = i})
+
+                    Sections.Esp:Label({Name = 'mid'}):Colorpicker({
+                        Name = 'mid color';
+                        Flag = 'barmidcolor'..i;
+                        Default = v['Mid'];
+                        Callback = function(dih)
+                            v['Mid'] = dih
+                            EspLib:Refresh()
+                        end;
+                    })
+                end
             end
-        })
 
-        for i, v in EspLib['Table']['Boxes'] do
-            if type(v) ~= 'table' then 
-                continue 
+            for i, v in EspLib['Table']['Texts'] do
+                if type(v) ~= 'table' then
+                    continue
+                end
+                if rawget(v, 'Enabled') then
+                    Sections.Esp:Toggle({
+                        Name = i;
+                        Flag = 'texttoggle'..i;
+                        Default = v['Enabled'];
+                        Callback = function(dih)
+                            v['Enabled'] = dih
+                            EspLib:Refresh()
+                        end
+                    })
+                end
+
+                if v['Color'] then
+                    Sections.Esp:Label({Name = i})
+
+                    Sections.Esp:Label({Name = 'color'}):Colorpicker({
+                        Name = 'color';
+                        Flag = 'textcolor'..i;
+                        Default = v['Color'];
+                        Callback = function(dih)
+                            v['Color'] = dih
+                            EspLib:Refresh()
+                        end;
+                    })
+                end
             end
-            if rawget(v, 'Enabled') then
-                Sections.Esp:Toggle({
-                    Name = i;
-                    Flag = 'boxtoggle'..i;
-                    Default = v['Enabled'];
-                    Callback = function(dih)
-                        v['Enabled'] = dih
-                    end
-                })
-            end
 
-            if v['Top'] then
-                Sections.Esp:Label({Name = i})
-
-                Sections.Esp:Label({Name = 'top'}):Colorpicker({
-                    Name = 'top color';
-                    Flag = 'boxtopcolor'..i;
-                    Default = v['Top'];
-                    Callback = function(dih)
-                        v['Top'] = dih
-                    end;
-                })
-            end
-
-            if v['Bot'] then
-                Sections.Esp:Label({Name = i})
-
-                Sections.Esp:Label({Name = 'bottom'}):Colorpicker({
-                    Name = 'bottom color';
-                    Flag = 'boxbotcolor'..i;
-                    Default = v['Bot'];
-                    Callback = function(dih)
-                        v['Bot'] = dih
-                    end;
-                })
-            end
+            Sections.Esp:Slider({
+                Name = 'max distance';
+                Flag = 'espmaxdistance';
+                Min = 200;
+                Max = 5000;
+                Default = 500;
+                Decimals = 1;
+                Callback = function(v)
+                    EspLib['Table']['Distance'] = v
+                end
+            })
         end
-
-        for i, v in EspLib['Table']['Bars'] do
-            if type(v) ~= 'table' then 
-                continue 
-            end
-            if rawget(v, 'Enabled') then
-                Sections.Esp:Toggle({
-                    Name = i;
-                    Flag = 'bartoggle'..i;
-                    Default = v['Enabled'];
-                    Callback = function(dih)
-                        v['Enabled'] = dih
-                    end
-                })
-            end
-
-            if v['Top'] then
-                Sections.Esp:Label({Name = i})
-
-                Sections.Esp:Label({Name = 'top'}):Colorpicker({
-                    Name = 'top color';
-                    Flag = 'bartopcolor'..i;
-                    Default = v['Top'];
-                    Callback = function(dih)
-                        v['Top'] = dih
-                    end;
-                })
-            end
-
-            if v['Bot'] then
-                Sections.Esp:Label({Name = i})
-
-                Sections.Esp:Label({Name = 'bottom'}):Colorpicker({
-                    Name = 'bottom color';
-                    Flag = 'barbotcolor'..i;
-                    Default = v['Bot'];
-                    Callback = function(dih)
-                        v['Bot'] = dih
-                    end;
-                })
-            end
-
-            if v['Mid'] then
-                Sections.Esp:Label({Name = i})
-
-                Sections.Esp:Label({Name = 'mid'}):Colorpicker({
-                    Name = 'mid color';
-                    Flag = 'barmidcolor'..i;
-                    Default = v['Mid'];
-                    Callback = function(dih)
-                        v['Mid'] = dih
-                    end;
-                })
-            end
-        end
-
-        for i, v in EspLib['Table']['Texts'] do
-            if type(v) ~= 'table' then 
-                continue 
-            end
-            if rawget(v, 'Enabled') then
-                Sections.Esp:Toggle({
-                    Name = i;
-                    Flag = 'texttoggle'..i;
-                    Default = v['Enabled'];
-                    Callback = function(dih)
-                        v['Enabled'] = dih
-                    end
-                })
-            end
-
-            if v['Color'] then
-                Sections.Esp:Label({Name = i})
-
-                Sections.Esp:Label({Name = 'color'}):Colorpicker({
-                    Name = 'color';
-                    Flag = 'textcolor'..i;
-                    Default = v['Color'];
-                    Callback = function(dih)
-                        v['Color'] = dih
-                    end;
-                })
-            end
-        end
-
-        Sections.Esp:Slider({
-            Name = 'max distance';
-            Flag = 'espmaxdistance';
-            Min = 200;
-            Max = 5000;
-            Default = 500;
-            Decimals = 1;
-            Callback = function(v)
-                EspLib['Table']['Distance'] = v
-            end
-        })
-    end
 
 
 
