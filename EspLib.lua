@@ -20,6 +20,7 @@ local Pale = Color3.fromRGB(253, 253, 255)
 
 local BoxHeight = 5.8
 local BoxOffset = Vector3.new(0, -0.4, 0)
+local TextInterval = 0.2
 
 local EspLib = {
     Directory = "Vergil",
@@ -29,6 +30,7 @@ local EspLib = {
         Enabled = true,
         TeamCheck = false,
         Distance = 500,
+        TextStroke = false,
 
         Boxes = {
             Enabled = true,
@@ -84,6 +86,7 @@ local EspLib = {
             AlwaysOnTop = true;
             Transparency = 0;
             SizePadding = 0.01;
+            Distance = 300;
         };
 
         Ai = {
@@ -144,9 +147,16 @@ local EspLib = {
 }
 local Cache = EspLib.Cache
 local Objects = EspLib.Objects
-local Shadow = { }
 local Styles = { }
 local Levels = { }
+
+-- Styling is recompiled only when Refresh() is called, instead of deep-diffing
+-- the whole settings tree every frame.
+local Dirty = true
+
+function EspLib:Refresh()
+    Dirty = true
+end
 
 local function LoadFont()
     local Folder = EspLib.Directory .. "/Assets"
@@ -199,7 +209,10 @@ local function Text(Properties)
     Properties.FontFace = ProggyClean
     Properties.TextSize = 12
     Properties.TextColor3 = White
-    Properties.TextStrokeTransparency = 0
+    -- Text stroke renders the glyph run several times; off by default.
+    Properties.TextStrokeTransparency = 1
+    Properties.RichText = false
+    Properties.TextScaled = false
 
     return New("TextLabel", Properties)
 end
@@ -237,31 +250,6 @@ local Gui = New("ScreenGui", {
     DisplayOrder = 1,
 })
 
-local function Diff(Source, Copy)
-    local Dirty = false
-
-    for Key, Value in Source do
-        if type(Value) == "table" then
-            local Inner = Copy[Key]
-
-            if type(Inner) ~= "table" then
-                Inner = { }
-                Copy[Key] = Inner
-                Dirty = true
-            end
-
-            if Diff(Value, Inner) then
-                Dirty = true
-            end
-        elseif Copy[Key] ~= Value then
-            Copy[Key] = Value
-            Dirty = true
-        end
-    end
-
-    return Dirty
-end
-
 local function Compile()
     local Settings = EspLib.Table
     local Box = Settings.Boxes.Box
@@ -280,6 +268,7 @@ end
 local function Style(Esp)
     local Settings = EspLib.Table
     local Boxes = Settings.Boxes
+    local Stroke = Settings.TextStroke and 0 or 1
 
     Esp.Fill.Visible = Boxes.Enabled and Boxes.Fill.Enabled
     Esp.Fill.BackgroundTransparency = Boxes.Fill.Transparency or 0.9
@@ -296,6 +285,7 @@ local function Style(Esp)
 
         Label.Visible = Data.Enabled
         Label.TextColor3 = Data.Color
+        Label.TextStrokeTransparency = Stroke
     end
 end
 
@@ -338,28 +328,20 @@ local function PaintHealth(Esp)
     Esp.Labels.Health.Position = UDim2.new(0, -12, 1 - Esp.Shown, 0)
 end
 
---[[local function DoBHAChams(chr: Instance, allowlist: {any}, params: {any})
-    params = params or {}
-    local CIntances = {}
-    for i, v in chr:GetChildren() do
-        if table.find(allowlist, v.Name) then
-            local BoxHandleAdornment = Instance.new("BoxHandleAdornment");
-            BoxHandleAdornment.Parent = v;
-            BoxHandleAdornment.Adornee = v;
-            BoxHandleAdornment.Size = v.Size + Vector3.new(0.01, 0.01, 0.01);
-            BoxHandleAdornment.Color3 = params.color;
-            BoxHandleAdornment.Shading = params.shading;
-            BoxHandleAdornment.AlwaysOnTop = params.alwaysOnTop;
-            BoxHandleAdornment.Transparency = params.transparency;
-            BoxHandleAdornment.Name = "\0"
-            table.insert(CIntances, BoxHandleAdornment)
-        end
-    end
-    return CIntances;
-end]]
 function EspLib.Chams:DoBHAChams(chr: Instance, allowlist: {any})
     local Settings = EspLib["Table"]["bha"]
+    local Existing = EspLib.Chams.Players[chr.Name]
+
+    if Existing then
+        for _, v in Existing do
+            if v.Parent then
+                v:Destroy()
+            end
+        end
+    end
+
     local CIntances = {}
+
     for _, v in chr:GetChildren() do
         if table.find(allowlist, v.Name) then
             local BoxHandleAdornment = Instance.new("BoxHandleAdornment");
@@ -375,27 +357,67 @@ function EspLib.Chams:DoBHAChams(chr: Instance, allowlist: {any})
             table.insert(CIntances, BoxHandleAdornment);
         end;
     end;
+
     EspLib.Chams.Players[chr.Name] = CIntances;
 end;
 
 function EspLib.Chams:ClearPlrChams(plr: string)
-    for _, v in EspLib.Chams.Players[plr] do
+    local List = EspLib.Chams.Players[plr]
+
+    if not List then
+        return
+    end
+
+    for _, v in List do
         v:Destroy()
     end
+
+    EspLib.Chams.Players[plr] = nil
 end
+
+-- Chams properties only change when a setting changes, so this runs on a timer
+-- and culls by distance rather than touching every adornment every frame.
+local ChamsClock = 0
 
 function EspLib.Chams:Update()
     local Settings = EspLib["Table"]["bha"]
-    local Padding = Vector3.new(1, 1, 1) * Settings.SizePadding
+    local Now = os.clock()
 
-    for _, List in EspLib.Chams.Players do
+    if Now - ChamsClock < 0.05 then
+        return
+    end
+
+    ChamsClock = Now
+
+    local Padding = Vector3.new(1, 1, 1) * Settings.SizePadding
+    local Camera = workspace.CurrentCamera
+    local Origin = Camera and Camera.CFrame.Position
+    local Range = Settings.Distance or 300
+    local RangeSquared = Range * Range
+
+    for Name, List in EspLib.Chams.Players do
+        local Show = Settings.Enabled
+
+        if Show and Origin then
+            local Player = Players:FindFirstChild(Name)
+            local Character = Player and Player.Character
+            local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+
+            if Root then
+                local Offset = Root.Position - Origin
+                Show = Offset:Dot(Offset) <= RangeSquared
+            else
+                Show = false
+            end
+        end
+
         for i = #List, 1, -1 do
             local Inst = List[i]
             local Part = Inst.Parent
 
             if not Part then
                 table.remove(List, i)
-            elseif Inst:IsA("BoxHandleAdornment") and Settings.Enabled then
+            elseif Show then
                 local Size = Part.Size + Padding
 
                 if Inst.Color3 ~= Settings.Color then
@@ -433,7 +455,13 @@ local function SetHealth(Esp, Humanoid)
     local Health = math.max(Humanoid.Health, 0)
 
     Esp.Target = math.clamp(Health / math.max(Humanoid.MaxHealth, 1), 0, 1)
-    Esp.Labels.Health.Text = tostring(math.floor(Health + 0.5))
+
+    local Rounded = math.floor(Health + 0.5)
+
+    if Rounded ~= Esp.HealthText then
+        Esp.HealthText = Rounded
+        Esp.Labels.Health.Text = tostring(Rounded)
+    end
 end
 
 local function SetWeapon(Esp)
@@ -575,13 +603,8 @@ local function Create(Name)
         Size = UDim2.new(1, 0, 0, 22),
     })
 
-    New("UIListLayout", {
-        Parent = Bottom,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 1),
-    })
-
+    -- Fixed offsets instead of a UIListLayout: a layout re-flows its children
+    -- every time a label's text changes, which happens per player per frame.
     local Esp = {
         Player = nil,
         Holder = Holder,
@@ -613,15 +636,15 @@ local function Create(Name)
 
             Weapon = Text({
                 Parent = Bottom,
+                Position = UDim2.fromOffset(0, 0),
                 Size = UDim2.new(1, 0, 0, 10),
-                LayoutOrder = 1,
                 Text = "none",
             }),
 
             Distance = Text({
                 Parent = Bottom,
+                Position = UDim2.fromOffset(0, 11),
                 Size = UDim2.new(1, 0, 0, 10),
-                LayoutOrder = 2,
                 Text = "0m",
             }),
         },
@@ -638,8 +661,10 @@ local function Create(Name)
         Width = -1,
         Height = -1,
         Meters = -1,
+        HealthText = -1,
         Weapon = "none",
         NextWeapon = 0,
+        NextText = 0,
 
         Links = { },
         PlayerLinks = { },
@@ -762,6 +787,7 @@ function EspLib:AddObject(Object, Category, Name)
         X = -1,
         Y = -1,
         Meters = -1,
+        NextText = 0,
 
         Links = { },
     }
@@ -815,7 +841,8 @@ end
 local function Step(Delta)
     local Settings = EspLib.Table
 
-    if Diff(Settings, Shadow) then
+    if Dirty then
+        Dirty = false
         Compile()
 
         for _, Esp in Cache do
@@ -893,12 +920,20 @@ local function Step(Delta)
             Esp.Holder.Size = UDim2.fromOffset(Width, Height)
         end
 
-        if ShowDistance then
-            local Meters = math.floor(math.sqrt(DistanceSquared) + 0.5)
+        -- Text changes force a glyph re-layout, so they are rate limited rather
+        -- than written every frame as the distance ticks over.
+        local TextDue = Clock >= Esp.NextText
 
-            if Meters ~= Esp.Meters then
-                Esp.Meters = Meters
-                Esp.Labels.Distance.Text = Meters .. "m"
+        if TextDue then
+            Esp.NextText = Clock + TextInterval
+
+            if ShowDistance then
+                local Meters = math.floor(math.sqrt(DistanceSquared) + 0.5)
+
+                if Meters ~= Esp.Meters then
+                    Esp.Meters = Meters
+                    Esp.Labels.Distance.Text = Meters .. "m"
+                end
             end
         end
 
@@ -965,18 +1000,21 @@ local function Step(Delta)
             Entry.Holder.Position = UDim2.fromOffset(X, Y)
         end
 
-        local Distance = math.sqrt(DistanceSquared)
-        local Meters = math.floor(Distance + 0.5)
+        if Clock >= Entry.NextText then
+            Entry.NextText = Clock + TextInterval
 
-        if Meters ~= Entry.Meters or Entry.Info ~= Entry.ShownInfo then
-            Entry.Meters = Meters
-            Entry.ShownInfo = Entry.Info
-            Entry.Labels.Distance.Text = Entry.Info == "" and Meters .. "m" or Entry.Info .. " | " .. Meters .. "m"
-        end
+            local Meters = math.floor(math.sqrt(DistanceSquared) + 0.5)
 
-        if Entry.Contents ~= Entry.ShownContents then
-            Entry.ShownContents = Entry.Contents
-            Entry.Labels.Contents.Text = Entry.Contents
+            if Meters ~= Entry.Meters or Entry.Info ~= Entry.ShownInfo then
+                Entry.Meters = Meters
+                Entry.ShownInfo = Entry.Info
+                Entry.Labels.Distance.Text = Entry.Info == "" and Meters .. "m" or Entry.Info .. " | " .. Meters .. "m"
+            end
+
+            if Entry.Contents ~= Entry.ShownContents then
+                Entry.ShownContents = Entry.Contents
+                Entry.Labels.Contents.Text = Entry.Contents
+            end
         end
 
         Show(Entry)
@@ -998,11 +1036,14 @@ function EspLib:Unload()
         EspLib:RemoveObject(Object)
     end
 
+    for Name in EspLib.Chams.Players do
+        EspLib.Chams:ClearPlrChams(Name)
+    end
+
     Gui:Destroy()
     getgenv().EspLib = nil
 end
 
-Diff(EspLib.Table, Shadow)
 Compile()
 
 for _, Player in Players:GetPlayers() do
@@ -1015,6 +1056,7 @@ end))
 
 table.insert(EspLib.Connections, Players.PlayerRemoving:Connect(function(Player)
     EspLib:Remove(Player)
+    EspLib.Chams:ClearPlrChams(Player.Name)
 end))
 
 RunService:BindToRenderStep("BananaEsp", Enum.RenderPriority.Camera.Value + 1, Step)
