@@ -1,5 +1,5 @@
 cloneref = cloneref or function(Object) return Object end
-
+--vibecoded
 if getgenv().EspLib then
     getgenv().EspLib:Unload()
 end
@@ -150,8 +150,6 @@ local Objects = EspLib.Objects
 local Styles = { }
 local Levels = { }
 
--- Styling is recompiled only when Refresh() is called, instead of deep-diffing
--- the whole settings tree every frame.
 local Dirty = true
 
 function EspLib:Refresh()
@@ -209,7 +207,6 @@ local function Text(Properties)
     Properties.FontFace = ProggyClean
     Properties.TextSize = 12
     Properties.TextColor3 = White
-    -- Text stroke renders the glyph run several times; off by default.
     Properties.TextStrokeTransparency = 1
     Properties.RichText = false
     Properties.TextScaled = false
@@ -375,8 +372,7 @@ function EspLib.Chams:ClearPlrChams(plr: string)
     EspLib.Chams.Players[plr] = nil
 end
 
--- Chams properties only change when a setting changes, so this runs on a timer
--- and culls by distance rather than touching every adornment every frame.
+
 local ChamsClock = 0
 
 function EspLib.Chams:Update()
@@ -603,8 +599,6 @@ local function Create(Name)
         Size = UDim2.new(1, 0, 0, 22),
     })
 
-    -- Fixed offsets instead of a UIListLayout: a layout re-flows its children
-    -- every time a label's text changes, which happens per player per frame.
     local Esp = {
         Player = nil,
         Holder = Holder,
